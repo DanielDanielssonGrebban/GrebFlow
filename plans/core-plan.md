@@ -1,6 +1,8 @@
-# GrebFlow build plan
+# GrebFlow V1 core plan
 
 Status: ready for implementation. This document defines the version 1 scope, technical requirements, build order, and acceptance checks.
+
+Complete V1 before considering the optional features in the [V2 plan](v2-plan.md).
 
 Build GrebFlow for a one-day company hackathon. The project and app name is GrebFlow.
 
@@ -83,7 +85,7 @@ The demo must show live dictation, local history, basic statistics, and a genuin
 | Report trigger | User clicks Generate report. Automatic weekly delivery comes later. |
 | Sample data | Optional, clearly labeled sample history, separate from real history. |
 | Login | Provide a Launch at login setting. |
-| Distribution | GitHub-hosted installable build is version 2 or a stretch after the demo works. |
+| Distribution | Outside V1. See the [V2 plan](v2-plan.md). |
 
 The remaining choices below are implementation defaults. Prefer simple implementations within the agreed scope.
 
@@ -98,6 +100,8 @@ Check English locale availability through SpeechTranscriber.supportedLocales and
 Build the recording and paste loop, menu bar states, local history, simple statistics, Anthropic reports, retention, API key settings, login setting, and separate demo data.
 
 Defer automatic output muting, automatic bilingual recognition, filler-word rewriting, cloud transcription, saved audio, code or shell-command generation, email delivery, scheduling, multi-provider AI support, accounts, hosted services, synchronization, custom vocabulary management, app exclusions, and distribution. Normal recognizer punctuation is fine. Do not add an LLM cleanup step before paste.
+
+Optional follow-up features and their technical requirements live in the [V2 plan](v2-plan.md). Deferred items are not V1 acceptance requirements.
 
 Support broad paste compatibility without claiming every application or field will accept it. Prove it in Terminal, the user's preferred terminal emulator if installed, an AI coding CLI, an editor, a browser text area, and a standard native text field.
 
@@ -367,18 +371,6 @@ Manual checks on the user's Mac:
 Measure with a monotonic clock: shortcut down, first captured buffer, first recognition result, key release, final transcript, clipboard write, and paste-event posting. Store timing metadata only. Event posting is not the same as visible insertion; confirm visible delay manually in the target apps. Record cold start separately from warm runs, using about ten short and five longer dictations. Report typical and slow observed results without overstating statistical confidence.
 
 Version 1 is demo-ready when live dictation and terminal paste work repeatedly without refocusing between recordings, no audio is saved, real history survives restart, retention works, the menu icon reflects activity, the dashboard shows useful basic data, and a real Anthropic request produces a readable report from selected data. Subsecond latency is a goal rather than an acceptance gate.
-
-## Version 2 and later
-
-1. Shareable app build through GitHub Releases. Begin with an installable app archive or DMG, then signing and notarization for straightforward installation. Check Developer ID access, Gatekeeper behavior, stable app identity, and a clean Mac's permission onboarding. Do not promise that an unsigned download opens without extra steps.
-2. Manual Swedish selection, after checking downloadable DictationTranscriber assets and latency/accuracy. Automatic English/Swedish detection and mixed-language speech need separate evaluation and may require another engine. Do not assume locale selection is automatic language detection. [Apple language support](https://developer.apple.com/documentation/speech/speechtranscriber)
-3. Automatic weekly reports with a local notification or chosen delivery channel. Decide what happens when the app is closed, offline, or asleep before implementing scheduling.
-4. Optional filler cleanup, custom developer vocabulary, report streaming, exclusion controls, and richer evidence navigation. Keep any cleanup outside the default low-latency dictation path until measured.
-5. Optional "Mute other audio while recording" setting, off by default. Mute playback when right Option starts an authorized recording and restore it on release, without waiting for transcription or paste. Leave the microphone active. A basic device mute is small, but reliable restoration and output-device coverage need additional work, so this belongs in version 2.
-
-For output muting, use Core Audio to query the active output device's kAudioDevicePropertyMute and check that it exists and is settable before changing it. Preserve the original state of each device GrebFlow changes; never unmute an already-muted device or change its volume. Restore on release, cancellation, capture failure, sleep, and normal quit. Handle output-device changes and respect user adjustments while recording. Define recovery for an interrupted session without promising restoration after a force quit or crash. If a device cannot be muted, indicate that limitation and let dictation continue.
-
-Start with the default playback device and account for a separate system-alert output. Other apps can use different output routes, so label device coverage honestly rather than promising all sound on every configuration. Test speakers, headphones, Bluetooth route changes, and unsupported external outputs. Muting playback does not pause the music or video. Do not add system-audio capture, a virtual audio driver, or per-app playback automation just for this setting. [Core Audio mute property](https://developer.apple.com/documentation/coreaudio/kaudiodevicepropertymute), [checking whether a property is writable](https://developer.apple.com/documentation/coreaudio/audioobjectispropertysettable(_:_:_:))
 
 ## Instructions for the implementation handoff
 
