@@ -18,15 +18,106 @@
 | Retention | Default 30 days, optional 7 days, and Delete all history. Reports must not preserve expired source history. |
 | AI | Anthropic. API key field in Settings, key stored in macOS Keychain. |
 | Report trigger | User clicks Generate report. Automatic weekly delivery comes later. |
+| Report history | Send all retained transcripts from the current dataset with the report skill and optional context. No date-range picker or automatic omission in V1. |
+| Report instructions | A reusable report skill, editable in the app, plus optional context or requests for each report. |
 | Sample data | Optional, clearly labeled sample history, separate from real history. |
 | Login | Provide a Launch at login setting. |
 | Distribution | Outside V1. See the [V2 plan](v2-plan.md). |
 
-Status: ready for implementation. This document defines the version 1 scope, technical requirements, build order, and acceptance checks.
+## Product and demo goal
+
+Build GrebFlow for a one-day company hackathon. It is a native macOS menu bar dictation app for developers. The user holds right Option, speaks an English prompt, releases the key, and gets plain text pasted into the focused input. Terminal and AI coding CLI input are first-class destinations.
+
+The differentiator is analysis of repeated developer work. The dashboard uses local transcript history to show usage and lets the user request a Claude report with suggestions for skills, reusable prompts, or automations. These remain suggestions. The app never executes them.
+
+The demo must show live dictation, local history, basic statistics, and a genuine Anthropic report generated from all retained history in the chosen real or sample dataset, together with the report skill and optional context. Provide sample history because one day of real usage may not contain enough repetition.
+
+## Version 1 boundaries
+
+Build the recording and paste loop, menu bar states, local history, simple statistics, Anthropic reports with an editable report skill and optional context, retention, API key settings, login setting, and separate demo data.
+
+Defer automatic output muting, automatic bilingual recognition, filler-word rewriting, cloud transcription, saved audio, code or shell-command generation, email delivery, scheduling, multi-provider AI support, accounts, hosted services, synchronization, custom vocabulary management, app exclusions, and distribution. Normal recognizer punctuation is fine. Do not add an LLM cleanup step before paste.
 
 Complete V1 before considering the optional features in the [V2 plan](v2-plan.md).
 
-Build GrebFlow for a one-day company hackathon. The project and app name is GrebFlow.
+Support broad paste compatibility without claiming every application or field will accept it. Prove it in Terminal, the user's preferred terminal emulator if installed, an AI coding CLI, an editor, a browser text area, and a standard native text field.
+
+## Menu and dashboard
+
+Menu items:
+
+- Current state and setup problem, if any.
+- Hold right Option to dictate.
+- Open dashboard.
+- Copy latest transcript when available.
+- Settings.
+- Quit.
+
+Icon states: idle microphone, audio-reactive recording icon, distinct processing animation, and setup/error indicator. Distinguish states by shape or movement as well as color. Do not open windows automatically during dictation.
+
+The dashboard can use a simple sidebar or tabs:
+
+- Overview: transcript count, dictated words, recording duration, words per minute, daily usage, and frequent non-stop-words.
+- History: timestamp, transcript, duration, and Copy. Detailed search and editing can wait.
+- Reports: current real or sample dataset, all retained history with its date span and transcript count, report skill editor, optional additional context or specific requests, Generate report, progress, errors, and saved results. No date-range picker in V1.
+- Settings: API key, model ID, retention, shortcut, Launch at login, setup status, demo mode, and Delete all history.
+
+Statistics should come from local code. Word frequency excludes common English stop words while retaining developer terms. Clearly label words per minute as dictated words divided by recording duration. Do not invent typing-time savings without an agreed baseline.
+
+Keep Launch at login off until enabled. Use SMAppService.mainApp and show its real registration/approval state. Test from a stable app bundle location; user or system approval may be needed. [Apple's login item API](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp)
+
+## Target environment
+
+Target macOS 26 and Apple silicon for the proof of concept. The development machine runs macOS 26.6.2 and has Xcode at /Applications/Xcode.app with Swift 6.2 and a macOS 26 SDK. Confirm the installed versions before implementation. Do not accidentally use macOS 27-only APIs from the latest online documentation.
+
+Check English locale availability through SpeechTranscriber.supportedLocales and verify that the installed SDK includes progressive transcription presets, prepareToAnalyze, and explicit finalization methods. Keep Swedish support outside version 1; evaluate DictationTranscriber locales and assets separately for that later feature.
+
+## Technical approach
+
+The choices below are implementation defaults. Prefer simple implementations within the agreed scope.
+
+| Need | Initial implementation |
+| --- | --- |
+| App and dashboard | SwiftUI with AppKit integration for status icon and window behavior. One macOS Xcode app target. |
+| Menu bar | NSStatusItem with an NSMenu and a small custom icon drawing microphone level. This offers direct control over icon updates. |
+| App lifecycle | LSUIElement enabled. No ordinary main window at launch. Opening the dashboard explicitly activates it. Closing it leaves dictation available. |
+| Shortcut | Quartz event tap, handling flagsChanged and the physical right Option key independently of left Option. |
+| Microphone | AVAudioEngine with an input tap. No audio-file output. |
+| Speech | SpeechAnalyzer plus SpeechTranscriber, initially en-US and timeIndexedProgressiveTranscription. |
+| Text insertion | NSPasteboard.general and synthetic Command-V through CGEvent. |
+| Persistence | SwiftData backed by a local store in Application Support. Explicitly disable CloudKit integration. |
+| API | A small URLSession client for Anthropic Messages. No third-party SDK needed. |
+| Secrets | Security framework Keychain generic-password item. |
+| Preferences | UserDefaults or AppStorage for non-secret settings. |
+| Login | SMAppService.mainApp registration and actual service status. |
+| Word counts | NaturalLanguage tokenization and a small checked-in English stop-word list. |
+
+Use a directly run local app bundle with stable identity and development signing where available. Use a non-App-Store, unsandboxed target for the POC's global input integration. Reassess sandboxing and distribution later.
+
+Apple documents both SwiftUI MenuBarExtra and the LSUIElement behavior, but AppKit's status item is the implementation default here because the icon itself must animate. [Menu bar documentation](https://developer.apple.com/documentation/swiftui/menubarextra)
+
+### Keep the code small
+
+Use GrebFlow consistently throughout the project: GrebFlow.xcodeproj, the GrebFlow app target, scheme and Swift module, GrebFlowApp as the app entry point, and GrebFlow.app as the built product. Name the test target GrebFlowTests and use GrebFlow in window titles and menu labels.
+
+Suggested folders and responsibilities, not a mandatory file count:
+
+```text
+GrebFlow/
+  App/                 app entry point, service wiring, dashboard window
+  Dictation/           session coordinator, shortcut, audio, speech, paste
+  Storage/             models, local repository, retention, demo seeding
+  Reports/             Anthropic client, report preparation and prompt
+  Settings/            preferences, Keychain, permissions, login item
+  UI/                  status item, dashboard views
+GrebFlowTests/
+  session lifecycle, transcript assembly, paste normalization,
+  retention, report input, Anthropic response handling
+```
+
+Keep one coordinator responsible for each recording session. Views display state and issue actions. Audio callbacks and the event tap do minimal work and hand off to the appropriate worker. Run storage and report preparation away from the audio callback. Use Swift concurrency isolation deliberately rather than adding detached tasks to silence compiler warnings.
+
+Use small replaceable interfaces for speech, key events, paste, storage, and the API where they enable meaningful tests. Avoid a generalized plugin framework. Apply the audio callback and event-sequence rules in [Implementation requirements](#implementation-requirements) before the first live test.
 
 ## Implementation requirements
 
@@ -78,77 +169,6 @@ If the icon disappears, first check whether the GrebFlow process exited and insp
 If the recording indicator responds but no text appears, check whether history contains the phrase and whether its outcome is copyOnly. Recognition may already be working. Inspect the reported paste-skip reason and physical modifier state before changing the speech engine or adding focus restoration. Log predefined failure reasons and timing metadata only, never transcript text, field contents, unrelated keyboard input, or API keys.
 
 The core loop must pass the callback and paste tests, survive real microphone capture, and complete consecutive dictations without another click. If a UI automation tool cannot hold a modifier key alone, use a physical user test and record its result separately from automated checks.
-
-## Product and demo goal
-
-Build a native macOS menu bar dictation app for developers. The user holds right Option, speaks an English prompt, releases the key, and gets plain text pasted into the focused input. Terminal and AI coding CLI input are first-class destinations.
-
-The differentiator is analysis of repeated developer work. The dashboard uses local transcript history to show usage and lets the user request a Claude report with suggestions for skills, reusable prompts, or automations. These remain suggestions. The app never executes them.
-
-The demo must show live dictation, local history, basic statistics, and a genuine Anthropic report generated from an explicitly selected dataset. Provide sample history because one day of real usage may not contain enough repetition.
-
-The remaining choices below are implementation defaults. Prefer simple implementations within the agreed scope.
-
-## Target environment
-
-Target macOS 26 and Apple silicon for the proof of concept. The development machine runs macOS 26.6.2 and has Xcode at /Applications/Xcode.app with Swift 6.2 and a macOS 26 SDK. Confirm the installed versions before implementation. Do not accidentally use macOS 27-only APIs from the latest online documentation.
-
-Check English locale availability through SpeechTranscriber.supportedLocales and verify that the installed SDK includes progressive transcription presets, prepareToAnalyze, and explicit finalization methods. Keep Swedish support outside version 1; evaluate DictationTranscriber locales and assets separately for that later feature.
-
-## Version 1 boundaries
-
-Build the recording and paste loop, menu bar states, local history, simple statistics, Anthropic reports, retention, API key settings, login setting, and separate demo data.
-
-Defer automatic output muting, automatic bilingual recognition, filler-word rewriting, cloud transcription, saved audio, code or shell-command generation, email delivery, scheduling, multi-provider AI support, accounts, hosted services, synchronization, custom vocabulary management, app exclusions, and distribution. Normal recognizer punctuation is fine. Do not add an LLM cleanup step before paste.
-
-Optional follow-up features and their technical requirements live in the [V2 plan](v2-plan.md). Deferred items are not V1 acceptance requirements.
-
-Support broad paste compatibility without claiming every application or field will accept it. Prove it in Terminal, the user's preferred terminal emulator if installed, an AI coding CLI, an editor, a browser text area, and a standard native text field.
-
-## Technical approach
-
-| Need | Initial implementation |
-| --- | --- |
-| App and dashboard | SwiftUI with AppKit integration for status icon and window behavior. One macOS Xcode app target. |
-| Menu bar | NSStatusItem with an NSMenu and a small custom icon drawing microphone level. This offers direct control over icon updates. |
-| App lifecycle | LSUIElement enabled. No ordinary main window at launch. Opening the dashboard explicitly activates it. Closing it leaves dictation available. |
-| Shortcut | Quartz event tap, handling flagsChanged and the physical right Option key independently of left Option. |
-| Microphone | AVAudioEngine with an input tap. No audio-file output. |
-| Speech | SpeechAnalyzer plus SpeechTranscriber, initially en-US and timeIndexedProgressiveTranscription. |
-| Text insertion | NSPasteboard.general and synthetic Command-V through CGEvent. |
-| Persistence | SwiftData backed by a local store in Application Support. Explicitly disable CloudKit integration. |
-| API | A small URLSession client for Anthropic Messages. No third-party SDK needed. |
-| Secrets | Security framework Keychain generic-password item. |
-| Preferences | UserDefaults or AppStorage for non-secret settings. |
-| Login | SMAppService.mainApp registration and actual service status. |
-| Word counts | NaturalLanguage tokenization and a small checked-in English stop-word list. |
-
-Use a directly run local app bundle with stable identity and development signing where available. Use a non-App-Store, unsandboxed target for the POC's global input integration. Reassess sandboxing and distribution later.
-
-Apple documents both SwiftUI MenuBarExtra and the LSUIElement behavior, but AppKit's status item is the implementation default here because the icon itself must animate. [Menu bar documentation](https://developer.apple.com/documentation/swiftui/menubarextra)
-
-### Keep the code small
-
-Use GrebFlow consistently throughout the project: GrebFlow.xcodeproj, the GrebFlow app target, scheme and Swift module, GrebFlowApp as the app entry point, and GrebFlow.app as the built product. Name the test target GrebFlowTests and use GrebFlow in window titles and menu labels.
-
-Suggested folders and responsibilities, not a mandatory file count:
-
-```text
-GrebFlow/
-  App/                 app entry point, service wiring, dashboard window
-  Dictation/           session coordinator, shortcut, audio, speech, paste
-  Storage/             models, local repository, retention, demo seeding
-  Reports/             Anthropic client, report preparation and prompt
-  Settings/            preferences, Keychain, permissions, login item
-  UI/                  status item, dashboard views
-GrebFlowTests/
-  session lifecycle, transcript assembly, paste normalization,
-  retention, report input, Anthropic response handling
-```
-
-Keep one coordinator responsible for each recording session. Views display state and issue actions. Audio callbacks and the event tap do minimal work and hand off to the appropriate worker. Run storage and report preparation away from the audio callback. Use Swift concurrency isolation deliberately rather than adding detached tasks to silence compiler warnings.
-
-Use small replaceable interfaces for speech, key events, paste, storage, and the API where they enable meaningful tests. Avoid a generalized plugin framework. Apply the audio callback and event-sequence rules in [Implementation requirements](#implementation-requirements) before the first live test.
 
 ## Permissions and first-run setup
 
@@ -242,6 +262,7 @@ Store successful nonempty transcripts once. Cancelled and empty sessions need no
 Report fields:
 
 - id, generatedAt, periodStart, periodEnd, sourceTranscriptIDs.
+- periodStart and periodEnd describe the earliest and latest source transcript timestamps, not a user-selected date range.
 - Model ID, prompt version, generated Markdown, and input/output token usage if returned.
 - expiresAt, no later than the earliest expiration of any source transcript.
 - Snapshot of the history deletion generation, used to prevent stale request results being saved.
@@ -253,30 +274,6 @@ Changing from 30 to 7 days purges the older records immediately. Delete all hist
 Delete saved reports when their source records expire or are deleted. Also clear displayed report text. Before saving a network response, recheck source existence, expiry, and deletion generation so a late response cannot recreate deleted content.
 
 The app cannot run cleanup while fully quit. Perform it on next launch. Normal row deletion is application-level retention, not a guarantee of forensic erasure from SQLite files, OS backups, or already-sent API requests. Do not promise secure erasure or custom encryption in this POC.
-
-## Menu and dashboard
-
-Menu items:
-
-- Current state and setup problem, if any.
-- Hold right Option to dictate.
-- Open dashboard.
-- Copy latest transcript when available.
-- Settings.
-- Quit.
-
-Icon states: idle microphone, audio-reactive recording icon, distinct processing animation, and setup/error indicator. Distinguish states by shape or movement as well as color. Do not open windows automatically during dictation.
-
-The dashboard can use a simple sidebar or tabs:
-
-- Overview: transcript count, dictated words, recording duration, words per minute, daily usage, and frequent non-stop-words.
-- History: timestamp, transcript, duration, and Copy. Detailed search and editing can wait.
-- Reports: Last 7 days or Last 30 days within available retention, Generate report, progress, errors, and saved results.
-- Settings: API key, model ID, retention, shortcut, Launch at login, setup status, demo mode, and Delete all history.
-
-Statistics should come from local code. Word frequency excludes common English stop words while retaining developer terms. Clearly label words per minute as dictated words divided by recording duration. Do not invent typing-time savings without an agreed baseline.
-
-Keep Launch at login off until enabled. Use SMAppService.mainApp and show its real registration/approval state. Test from a stable app bundle location; user or system approval may be needed. [Apple's login item API](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp)
 
 ## Anthropic report implementation
 
@@ -290,13 +287,27 @@ Use claude-sonnet-5-5 as the proposed default model ID and confirm its availabil
 
 Use one asynchronous non-streaming request initially, with visible progress and Cancel. Keep the main thread and dictation responsive. A 120-second client timeout is an initial default. Streaming report display is optional after the complete request path works.
 
-Report generation flow:
+### Report skill and additional context
 
-1. Purge and filter history for the selected period and current dataset.
-2. Show the date range, transcript count, and text stating that Generate report sends that text to Anthropic. The button is the explicit send action; do not add a modal confirmation on every run.
+Create a dedicated report skill as a bundled Markdown instruction document. Apply it to every report request. It defines the report's purpose, structure, evidence requirements, and how to identify repeated work and suggest skills, reusable prompts, or automations. This skill guides report generation; it is separate from any skills suggested by the resulting report. It does not require a skill runner or executable tools.
+
+Provide a multiline editor within the app so the user can add, remove, or change the skill's instructions without rebuilding. Include Save and Reset to default actions. Persist the saved override locally across app restarts, keep the bundled default unchanged, and surface save failures. Require nonempty instructions before saving. Unsaved edits must not affect report requests.
+
+Add a separate optional multiline input labeled Additional context or specific requests beside the report controls. Send its contents with all retained transcription history from the current dataset when Generate report is clicked. This input applies only to that report, not to the saved skill. Allow a blank value. Clear it when switching between real and sample datasets so context does not carry over accidentally.
+
+Compose requests with fixed application rules and the saved report skill in the system prompt, and clearly separated additional context and transcript records in the user message. Fixed rules must retain priority over editable instructions: transcript text is evidence rather than instructions, no tools or execution are available, and suggestions must not claim unsupported evidence or measured savings. The context input can guide the analysis but is not evidence of activity in the history.
+
+Snapshot the saved skill and context at Generate report so edits during an in-flight request affect only future reports. Include a skill revision identifier with the report's prompt version. Do not retain extra copies of the skill or context in saved reports or logs. Keep the saved skill as a preference when deleting history, but clear the context input with Delete all history.
+
+Show that the request sends the report skill, additional context, and all retained history from the current dataset to Anthropic. Validate the complete request against the selected model's input and API request limits, reserving room for the response. Show an explicit error if it cannot fit. Never truncate instructions or omit transcripts to make it fit.
+
+### Report generation flow
+
+1. Run retention and snapshot all remaining transcripts from the current dataset. Exclude expired or deleted history and never mix real and sample records. Do not apply an additional date filter.
+2. Show the dataset, actual history date span, transcript count, saved report skill, optional context input, and text stating that Generate report sends these inputs to Anthropic. Validate and snapshot the instructions and context before sending. The button is the explicit send action; do not add a modal confirmation on every run.
 3. Include dated transcript IDs, recording times, text, and locally computed counts. Do not send audio, app window contents, clipboard history, or the API key as prompt content.
-4. Set an initial payload ceiling of 100,000 UTF-8 bytes of transcript data. Select whole records newest first, then present them chronologically. If records are omitted or a single record is too large, state how many were included. No silent truncation or complex chunking pipeline in version 1.
-5. Ask for a concise Markdown report in English with repeated workflows, evidence using real supplied transcript IDs and short excerpts, and up to five practical suggestions for a skill, reusable prompt, or automation. Ask the model to distinguish observed repetitions from inferred similarities. Say when evidence is insufficient.
+4. Include the full text of every retained transcript in chronological order in one request, together with the report skill and optional context. Remove the arbitrary 100,000-byte transcript ceiling. If the complete input exceeds the selected model's context window or API request limit, explain that all history could not be sent and do not generate a partial report. Handle a provider-side size rejection explicitly as well. No automatic omission, summarization, chunking, or subset retry in V1.
+5. Apply the saved report skill and additional context. The default skill asks for a concise Markdown report in English with repeated workflows, evidence using real supplied transcript IDs and short excerpts, and up to five practical suggestions for a skill, reusable prompt, or automation. Ask the model to distinguish observed repetitions from inferred similarities. Say when evidence is insufficient.
 6. Treat transcript text as quoted user data, not instructions for the report generator. Include no tools, shell access, web search, or automation execution. Do not claim measured time savings from speculative recommendations.
 7. Read all text content blocks from the response. Handle non-text blocks without assuming the first block is a string. Distinguish successful completion from refusal or max-token truncation. Start with an output allowance of 4,096 tokens and adjust only if evidence requires it.
 8. Save completed results and their source IDs after rechecking deletion state. Render as ordinary text/Markdown with Copy report. Do not automatically open links, install skills, or execute suggestions.
@@ -330,7 +341,7 @@ Build in dependency order. Adjust, add, or remove features with the user as impl
 2. Implement the nonisolated Sendable audio tap and balanced paste-event factory with their automated tests before connecting live capture. Connect right Option, microphone capture, streaming transcription, finalization, and paste. Verify at least five consecutive hold/release/paste cycles in a terminal and a regular text field, with no refocusing click, automatic Enter, or focus stealing. Keep the app alive through recording and return to Ready after each session.
 3. Add local transcript history and retention. Verify persistence across restarts and deletion of expired records.
 4. Add the dashboard statistics and separate sample store.
-5. Add Keychain settings and on-demand Claude reports. Generate a real report from sample history.
+5. Add Keychain settings, the default report skill, its in-app editor, the additional-context input, and on-demand Claude reports. Generate a real report from sample history using the saved skill and a specific request.
 6. Complete the login setting, shortcut picker, and recovery behavior.
 7. Run end-to-end checks, measure latency, and rehearse the demo with a saved, labeled report available for network failure.
 
@@ -348,7 +359,9 @@ Automated checks:
 - Paste normalization removes line breaks and control characters while preserving ordinary text. No insertion path posts Return.
 - In-memory persistence tests cover 7/30-day boundaries, settings changes, source report deletion, and late network responses after Delete all history.
 - Sample and real stores remain isolated; reset and seeding do not duplicate records.
-- Report preparation filters dates, enforces input bounds, exposes omissions, and sends only the selected dataset.
+- Report preparation includes every retained transcript in chronological order from only the current dataset, excludes expired or deleted records, and applies no extra date filter or arbitrary transcript-byte ceiling. Oversized complete requests produce an explicit error rather than omission, summarization, or a partial report.
+- Report requests apply the default or saved skill, include optional context separately from transcript evidence, and preserve fixed application rules. Cover blank context, rejected empty skills, oversized inputs, and edits during an in-flight request.
+- Skill edits survive restart, Reset to default restores the bundled instructions, and failed saves remain visible. Dataset changes and Delete all history clear report context without deleting the saved skill.
 - URLProtocol-based API tests cover authentication errors, rate limits, multiple content blocks, truncated output, cancellation, and a successful saved report without using a real key.
 
 Manual checks on the user's Mac:
@@ -365,6 +378,7 @@ Manual checks on the user's Mac:
 - No auto-submit in terminal, including when recognized text contains line breaks or shell-like content.
 - Destination app changes, dashboard opened mid-session, permission denial, sleep/wake, and microphone disconnection.
 - Retention after restart, deleting history while a report is in flight, invalid API key, no internet, and sample-mode report generation.
+- Edit and save the report skill in the app, restart, and verify the saved instructions remain. Generate a report with additional context, confirm it follows the requested focus while citing transcript evidence, and verify Reset to default works.
 - Stable menu icon placement and no Dock or overlay interruption during dictation.
 - Launch at login from the stable app bundle location, with registration errors shown honestly.
 
