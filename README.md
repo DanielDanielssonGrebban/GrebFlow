@@ -6,15 +6,15 @@ Voice-to-text for developers.
 
 Writing code means working with brackets, symbols, and exact syntax. Keyboards are well suited to that work; saying it all out loud is awkward.
 
-With AI coding agents, more of our work is shifting from writing code to describing what we want in plain English. We can speak those instructions faster than we can type them, yet our tools still expect us to reach for the keyboard.
+With AI coding agents, more of our work is shifting from writing code to describing what we want in plain English. We can speak those instructions faster than we can type them, yet we're so used to our keyboards that we keep typing out of habit.
 
-We also repeat the same requests to LLMs. Those recurring tasks are candidates for reusable skills, prompts, or scripts, but we need a way to spot them.
+We can make these AI workflows more efficient by turning repeated requests into reusable skills, scripts, or prompts. But we're missing a way to track what we ask our agents and spot the recurring tasks worth turning into something reusable.
 
 ## What we're building
 
 GrebFlow is a native macOS menu bar app. Hold a shortcut, speak, and release to paste your words into the active input, including terminals and AI coding tools.
 
-Transcription happens on the Mac. Audio is never saved, and transcript history is stored locally. When you request a report, GrebFlow sends all retained history from the current real or sample dataset to Claude, along with an editable report skill and any additional context or specific requests.
+Transcription runs locally using Apple's native Speech framework, with SpeechAnalyzer and SpeechTranscriber integrated through Swift. Audio is never saved, and transcript history is stored locally. When you request a report, GrebFlow sends all retained history from the current real or sample dataset to Claude, along with an editable report skill and any additional context or specific requests.
 
 Claude identifies recurring workflows and suggests reusable skills, prompts, or scripts. Developers review the suggestions and decide what to create. GrebFlow does not execute them.
 
