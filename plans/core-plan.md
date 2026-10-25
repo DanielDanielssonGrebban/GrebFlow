@@ -1,5 +1,27 @@
 # GrebFlow V1 core plan
 
+## Version 1 decisions
+
+| Area | Version 1 decision |
+| --- | --- |
+| Name | GrebFlow for the project, app, and code identifiers. |
+| Platform | Native macOS app written in Swift. Demo runs on the user's Mac. |
+| App entry point | Persistent menu bar icon and menu. Dashboard opens in a native window. |
+| Shortcut | Hold right Option to record. Release to finish and paste. Allow changing the shortcut in Settings. |
+| Recording feedback | Menu bar icon only. Respond to microphone activity and distinguish recording from processing. No floating overlay. |
+| Insertion | Put plain text on the clipboard and simulate paste. Keep the destination app focused. |
+| Terminal behavior | Single-line text, no embedded line breaks, no automatic Enter, no command generation or execution. |
+| Transcription | Start with Apple's on-device English transcription. Recognize while the user speaks. |
+| Performance | Aim for text within one second after release. Faster is better. Longer latency does not make the hackathon a failure. |
+| Audio | Process transient microphone audio. Do not save recordings. |
+| History | Save transcripts and small amounts of metadata in a local database. No hosted database or sync. |
+| Retention | Default 30 days, optional 7 days, and Delete all history. Reports must not preserve expired source history. |
+| AI | Anthropic. API key field in Settings, key stored in macOS Keychain. |
+| Report trigger | User clicks Generate report. Automatic weekly delivery comes later. |
+| Sample data | Optional, clearly labeled sample history, separate from real history. |
+| Login | Provide a Launch at login setting. |
+| Distribution | Outside V1. See the [V2 plan](v2-plan.md). |
+
 Status: ready for implementation. This document defines the version 1 scope, technical requirements, build order, and acceptance checks.
 
 Complete V1 before considering the optional features in the [V2 plan](v2-plan.md).
@@ -64,28 +86,6 @@ Build a native macOS menu bar dictation app for developers. The user holds right
 The differentiator is analysis of repeated developer work. The dashboard uses local transcript history to show usage and lets the user request a Claude report with suggestions for skills, reusable prompts, or automations. These remain suggestions. The app never executes them.
 
 The demo must show live dictation, local history, basic statistics, and a genuine Anthropic report generated from an explicitly selected dataset. Provide sample history because one day of real usage may not contain enough repetition.
-
-## Version 1 decisions
-
-| Area | Version 1 decision |
-| --- | --- |
-| Name | GrebFlow for the project, app, and code identifiers. |
-| Platform | Native macOS app written in Swift. Demo runs on the user's Mac. |
-| App entry point | Persistent menu bar icon and menu. Dashboard opens in a native window. |
-| Shortcut | Hold right Option to record. Release to finish and paste. Allow changing the shortcut in Settings. |
-| Recording feedback | Menu bar icon only. Respond to microphone activity and distinguish recording from processing. No floating overlay. |
-| Insertion | Put plain text on the clipboard and simulate paste. Keep the destination app focused. |
-| Terminal behavior | Single-line text, no embedded line breaks, no automatic Enter, no command generation or execution. |
-| Transcription | Start with Apple's on-device English transcription. Recognize while the user speaks. |
-| Performance | Aim for text within one second after release. Faster is better. Longer latency does not make the hackathon a failure. |
-| Audio | Process transient microphone audio. Do not save recordings. |
-| History | Save transcripts and small amounts of metadata in a local database. No hosted database or sync. |
-| Retention | Default 30 days, optional 7 days, and Delete all history. Reports must not preserve expired source history. |
-| AI | Anthropic. API key field in Settings, key stored in macOS Keychain. |
-| Report trigger | User clicks Generate report. Automatic weekly delivery comes later. |
-| Sample data | Optional, clearly labeled sample history, separate from real history. |
-| Login | Provide a Launch at login setting. |
-| Distribution | Outside V1. See the [V2 plan](v2-plan.md). |
 
 The remaining choices below are implementation defaults. Prefer simple implementations within the agreed scope.
 
