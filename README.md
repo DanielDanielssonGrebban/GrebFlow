@@ -1,5 +1,5 @@
 # GrebFlow
 
-Hackday project.
+Native macOS menu bar dictation app for developers.
 
-Project plans live in [`plans/`](plans/).
+See the [build plan](plans/build-plan.md) for scope, implementation requirements, and acceptance checks.
