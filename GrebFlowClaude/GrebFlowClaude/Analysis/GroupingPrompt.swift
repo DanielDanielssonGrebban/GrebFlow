@@ -217,12 +217,26 @@ enum GroupingPrompt {
         )
     }
 
-    /// Finds an excerpt in its source, ignoring case and differences in
-    /// whitespace, and returns the source's own wording.
+    /// Spoken fillers the model tends to drop when it quotes a transcript.
+    private static let fillerWords = ["um", "umm", "uh", "uhh", "er", "erm", "ah", "hmm", "mm"]
+
+    /// Finds an excerpt in its source and returns the source's own wording.
+    /// Whole words have to appear in order, but case, punctuation, whitespace
+    /// and filler words between them are ignored. Models quote "the, um,
+    /// large numbers" as "the large numbers", and one such quote used to
+    /// fail the whole batch.
     static func locate(_ excerpt: String, in source: String) -> String? {
-        let words = excerpt.split(whereSeparator: \.isWhitespace).map { NSRegularExpression.escapedPattern(for: String($0)) }
+        let fillers = Set(fillerWords)
+        let words = excerpt
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map { $0.lowercased() }
+            .filter { !fillers.contains($0) }
+            .map { NSRegularExpression.escapedPattern(for: $0) }
+        let filler = "(?<![\\p{L}\\p{N}])(?:\(fillerWords.joined(separator: "|")))(?![\\p{L}\\p{N}])"
+        let gap = "(?:[^\\p{L}\\p{N}]|\(filler))+"
+        let pattern = "(?<![\\p{L}\\p{N}])" + words.joined(separator: gap) + "(?![\\p{L}\\p{N}])"
         guard !words.isEmpty,
-              let regex = try? NSRegularExpression(pattern: words.joined(separator: "\\s+"), options: [.caseInsensitive]),
+              let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
               let match = regex.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
               let range = Range(match.range, in: source)
         else { return nil }

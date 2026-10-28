@@ -111,6 +111,27 @@ struct GroupingValidationTests {
         }
     }
 
+    @Test func excerptsMatchAcrossFillerWordsAndPunctuation() {
+        let source = "That's really good. Now, I noticed that the, um, large numbers in the top panels also have a gradient."
+        // The model tidied up the quote; the stored excerpt keeps the source's wording.
+        #expect(GroupingPrompt.locate("the large numbers in the top panels also", in: source)
+            == "the, um, large numbers in the top panels also")
+        #expect(GroupingPrompt.locate("Now I noticed", in: source) == "Now, I noticed")
+        #expect(GroupingPrompt.locate("that's REALLY  good", in: source) == "That's really good")
+    }
+
+    @Test func excerptsStillNeedTheSourceWordsInOrder() {
+        let source = "Uh, write tests for the cart, er, before we merge"
+        #expect(GroupingPrompt.locate("tests for cart", in: source) == nil)
+        #expect(GroupingPrompt.locate("for the tests", in: source) == nil)
+        #expect(GroupingPrompt.locate("write tests for the shop", in: source) == nil)
+        #expect(GroupingPrompt.locate("...", in: source) == nil)
+        // Fillers are only skipped as whole words, never inside one.
+        #expect(GroupingPrompt.locate("the cart before", in: source) == "the cart, er, before")
+        #expect(GroupingPrompt.locate("w rite", in: source) == nil)
+        #expect(GroupingPrompt.locate("art", in: source) == nil)
+    }
+
     @Test func rejectsMalformedPayloads() {
         #expect(throws: GroupingValidationError.malformedJSON) {
             try GroupingPrompt.validate("Here are the groups: commits and tests.", for: request, modelID: "m", inputTokens: nil, outputTokens: nil)
