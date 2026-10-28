@@ -79,6 +79,16 @@ struct HistoryStoreTests {
         #expect(Set(summaries.flatMap { $0.evidence.map(\.transcriptID) }).count == 3)
     }
 
+    @Test func groupCopyTextHoldsEveryDictationNewestFirst() throws {
+        let (store, transcripts) = try store(with: ["first", "second", "third"])
+        let group = ValidatedBatch.NewGroup(id: UUID(), label: "All", summary: "Everything.")
+        _ = try store.applyBatch(batch(transcripts, newGroups: [group], assignments: transcripts.map {
+            .init(groupID: group.id, transcriptID: $0.id, excerpts: [$0.text])
+        }), expectedGeneration: store.deletionGeneration, now: now)
+        let summary = try #require(try store.groupSummaries().first)
+        #expect(summary.copyText == "third\n\nsecond\n\nfirst")
+    }
+
     @Test func emptyAssignmentsStillMarkTranscriptsAnalyzed() throws {
         let (store, transcripts) = try store(with: ["what time is it in staging"])
         _ = try store.applyBatch(batch(transcripts, assignments: []), expectedGeneration: 0, now: now)
