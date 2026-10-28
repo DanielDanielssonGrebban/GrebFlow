@@ -29,19 +29,43 @@ enum SpeechEngineError: LocalizedError {
     }
 }
 
+/// DictationTranscriber rather than SpeechTranscriber because only the
+/// dictation module takes contextual strings and a custom language model,
+/// which carry the developer vocabulary. Unlike SpeechTranscriber it needs punctuation asked for.
+/// Emoji and etiquette replacements stay off so "smiley face" and swear
+/// words paste as spoken.
 enum SpeechConfig {
     static let locale = Locale(identifier: "en-US")
 
-    static func makeTranscriber(locale: Locale) -> SpeechTranscriber {
-        SpeechTranscriber(locale: locale, preset: .timeIndexedProgressiveTranscription)
+    static func makeTranscriber(
+        locale: Locale,
+        languageModel: DeveloperLanguageModel.Files? = nil
+    ) -> DictationTranscriber {
+        var hints: Set<DictationTranscriber.ContentHint> = []
+        if let languageModel {
+            hints.insert(.customizedLanguage(modelConfiguration: languageModel.configuration))
+        }
+        return DictationTranscriber(
+            locale: locale,
+            contentHints: hints,
+            transcriptionOptions: [.punctuation],
+            reportingOptions: [.volatileResults, .frequentFinalization],
+            attributeOptions: [.audioTimeRange]
+        )
+    }
+
+    static func makeContext() -> AnalysisContext {
+        let context = AnalysisContext()
+        context.contextualStrings[.general] = DeveloperVocabulary.terms
+        return context
     }
 
     static func resolvedLocale() async -> Locale? {
-        await SpeechTranscriber.supportedLocale(equivalentTo: locale)
+        await DictationTranscriber.supportedLocale(equivalentTo: locale)
     }
 }
 
-/// Microphone capture plus SpeechAnalyzer/SpeechTranscriber.
+/// Microphone capture plus SpeechAnalyzer/DictationTranscriber.
 ///
 /// An analyzer is prepared ahead of time with `prepareToAnalyze` so pressing
 /// the shortcut doesn't pay for model loading. A finalized analyzer can't take
@@ -50,7 +74,7 @@ enum SpeechConfig {
 final class LiveDictationEngine: DictationEngine {
     private struct Prepared {
         let analyzer: SpeechAnalyzer
-        let transcriber: SpeechTranscriber
+        let transcriber: DictationTranscriber
         let format: AVAudioFormat
     }
 
@@ -61,6 +85,7 @@ final class LiveDictationEngine: DictationEngine {
     }
 
     private let capture = MicrophoneCapture()
+    private let languageModels = DeveloperLanguageModelStore()
     private let logger = Logger(subsystem: "com.grebban.GrebFlowClaude", category: "speech")
     private var prepared: Prepared?
     private var preparing: Task<Prepared, Error>?
@@ -172,9 +197,9 @@ final class LiveDictationEngine: DictationEngine {
     /// analyzer without another waiter putting it back afterwards.
     private func preparedAnalyzer() async throws -> Prepared {
         if let prepared { return prepared }
-        let task = preparing ?? Task<Prepared, Error> { [weak self] in
+        let task = preparing ?? Task<Prepared, Error> { [weak self, languageModels] in
             do {
-                let result = try await Self.makePrepared()
+                let result = try await Self.makePrepared(languageModels: languageModels)
                 self?.prepared = result
                 self?.preparing = nil
                 return result
@@ -187,9 +212,10 @@ final class LiveDictationEngine: DictationEngine {
         return try await task.value
     }
 
-    private static func makePrepared() async throws -> Prepared {
+    private static func makePrepared(languageModels: DeveloperLanguageModelStore) async throws -> Prepared {
         guard let locale = await SpeechConfig.resolvedLocale() else { throw SpeechEngineError.unsupportedLocale }
-        let transcriber = SpeechConfig.makeTranscriber(locale: locale)
+        let languageModel = await languageModels.files(locale: locale)
+        let transcriber = SpeechConfig.makeTranscriber(locale: locale, languageModel: languageModel)
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
             throw SpeechEngineError.noCompatibleFormat
         }
@@ -197,6 +223,7 @@ final class LiveDictationEngine: DictationEngine {
             modules: [transcriber],
             options: .init(priority: .userInitiated, modelRetention: .processLifetime)
         )
+        try await analyzer.setContext(SpeechConfig.makeContext())
         try await analyzer.prepareToAnalyze(in: format)
         return Prepared(analyzer: analyzer, transcriber: transcriber, format: format)
     }

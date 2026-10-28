@@ -328,3 +328,51 @@ struct PasteGuardTests {
         #expect(await inserter.insert("hello ", into: destination, shortcut: .rightOption) == .copyOnly(.secureInput))
     }
 }
+
+@Suite("Developer vocabulary")
+struct DeveloperVocabularyTests {
+    @Test func includesOurNamesAndJSON() {
+        #expect(DeveloperVocabulary.terms.contains("GrebFlow"))
+        #expect(DeveloperVocabulary.terms.contains("JSON"))
+    }
+
+    @Test func staysWithinAppleLimitWithoutDuplicates() {
+        let terms = DeveloperVocabulary.terms
+        #expect(terms.count <= DeveloperVocabulary.maxTerms)
+        #expect(Set(terms.map { $0.lowercased() }).count == terms.count)
+        #expect(terms.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+    }
+
+    @Test func contextCarriesTheTerms() {
+        let context = SpeechConfig.makeContext()
+        #expect(context.contextualStrings[.general] == DeveloperVocabulary.terms)
+    }
+}
+
+@Suite("Developer language model")
+struct DeveloperLanguageModelTests {
+    @Test func pronunciationsUseSupportedPhonemes() {
+        let supported = Set(SFCustomLanguageModelData.supportedPhonemes(locale: SpeechConfig.locale))
+        for term in DeveloperLanguageModel.pronunciations {
+            for pronunciation in term.phonemes {
+                for phoneme in pronunciation.split(separator: " ") {
+                    #expect(supported.contains(String(phoneme)), "\(term.grapheme): \(phoneme)")
+                }
+            }
+        }
+    }
+
+    @Test func coversJSONGrebFlowAndKeepsJason() {
+        let phrases = DeveloperLanguageModel.phrases.map(\.phrase)
+        #expect(DeveloperLanguageModel.formats.contains("JSON"))
+        #expect(phrases.contains { $0.contains("GrebFlow") })
+        #expect(phrases.contains { $0.contains("Jason") })
+    }
+
+    @Test func templatesOnlyUseDefinedClasses() {
+        for template in DeveloperLanguageModel.templates {
+            let classes = template.body.matches(of: /<(\w+)>/).map { String($0.1) }
+            #expect(classes.allSatisfy { ["format", "verb"].contains($0) }, "\(template.body)")
+        }
+    }
+}
