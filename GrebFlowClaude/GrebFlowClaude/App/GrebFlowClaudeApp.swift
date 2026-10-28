@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // the microphone, event taps, or the menu bar.
         guard !isRunningTests else { return }
 
+        SingleInstance.takeOver()
         NSApp.mainMenu = Self.makeMainMenu()
         let model: AppModel
         do {
