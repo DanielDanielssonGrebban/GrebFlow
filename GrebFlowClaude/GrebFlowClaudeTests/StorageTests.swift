@@ -202,6 +202,12 @@ struct StatisticsTests {
         #expect(!words.contains("the"))
     }
 
+    @Test func frequentWordsStopAtFifteen() {
+        let words = (1...20).map { "word\($0)" }.joined(separator: " ")
+        let stats = UsageStats.compute(from: [snapshot(words)], now: now, days: 7)
+        #expect(stats.topWords.count == 15)
+    }
+
     @Test func dailyUsageGroupsByLocalCalendarDay() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Stockholm")!

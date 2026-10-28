@@ -45,7 +45,7 @@ struct UsageStats: Equatable, Sendable {
         now: Date,
         days: Int,
         calendar: Calendar = .current,
-        topWordLimit: Int = 20
+        topWordLimit: Int = 15
     ) -> UsageStats {
         var stats = UsageStats()
         stats.transcriptCount = transcripts.count
