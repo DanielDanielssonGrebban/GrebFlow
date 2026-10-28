@@ -13,7 +13,8 @@ This is one of three parallel builds of the same plan, made at a Grebban hackday
 - Committed and pushed on branch `feat/greb-flow-claude` (remote `origin`, `DanielDanielssonGrebban/GrebFlow`).
 - Dashboard tuning done after V1, at the user's request:
   - The window fills the usable screen every time it opens (not native full screen). No saved frame.
-  - The overview shows a colored ring for each of the 8 largest groups. Clicking one opens Usage scrolled to that group. Colors come from `GroupPalette` and are assigned in creation order (`InsightsModel.colorSlots`).
+  - The overview shows a ring for each of the 8 largest groups. Clicking one opens Usage scrolled to that group.
+  - The dashboard uses its own dark theme (`UI/Theme.swift`): near-black navy background, one blue hue for every chart, SF Mono everywhere. The window forces dark appearance. Rings take a shade from `Theme.blues` by rank, lightest for the largest. That 8-step ramp was generated in OKLCH and passes the dataviz ordinal checks against `Theme.card`. Status colors (ready, recording, warnings) stay green, red and orange.
   - The overview shows 15 frequent words, and the stat card values are large and centered.
   - Sample data is 117 dictations over 14 days, which goes past the plan's 60 over 7. `DemoSeeder.version` is stored in `Preferences.sampleSeedVersion`. Bump it when the seed changes, and older sample stores rebuild once on launch.
 
