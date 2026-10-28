@@ -9,17 +9,18 @@
 | App entry point | Persistent menu bar icon and menu. Dashboard opens in a native window. |
 | Shortcut | Hold right Option to record. Release to finish and paste. Allow changing the shortcut in Settings. |
 | Recording feedback | Menu bar icon only. Respond to microphone activity and distinguish recording from processing. No floating overlay. |
-| Insertion | Put plain text on the clipboard and simulate paste. Keep the destination app focused. |
+| Insertion | Put plain text on the clipboard and simulate paste. Keep the destination app focused. Every pasted transcript ends with exactly one space so consecutive dictations flow together. |
 | Terminal behavior | Single-line text, no embedded line breaks, no automatic Enter, no command generation or execution. |
 | Transcription | Start with Apple's on-device English transcription. Recognize while the user speaks. |
 | Performance | Aim for text within one second after release. Faster is better. Longer latency does not make the hackathon a failure. |
 | Audio | Process transient microphone audio. Do not save recordings. |
 | History | Save transcripts and small amounts of metadata in a local database. No hosted database or sync. |
-| Retention | Default 30 days, optional 7 days, and Delete all history. Reports must not preserve expired source history. |
-| AI | Anthropic. API key field in Settings, key stored in macOS Keychain. |
-| Report trigger | User clicks Generate report. Automatic weekly delivery comes later. |
-| Report history | Send all retained transcripts from the current dataset with the report skill and optional context. No date-range picker or automatic omission in V1. |
-| Report instructions | A reusable report skill, editable in the app, plus optional context or requests for each report. |
+| Retention | Keep history until the user clicks Delete all history. Rolling 7/30-day retention is in the [V2 plan](v2-plan.md). |
+| AI | Anthropic with a low-cost Claude Haiku-family model by default. API key field in Settings, key stored in macOS Keychain. Never silently upgrade to a more expensive model. |
+| Usage | An always-available Usage tab shows repeated phrases and sentences, plus AI groups of related meaning even when wording differs. No Generate report action is required. |
+| Analysis trigger | After explicit opt-in, analyze pending transcripts automatically in background batches while the app runs. Dictation never waits for analysis. |
+| Analysis input | Send only pending transcripts and existing group definitions from the same dataset. Cache results locally rather than repeatedly uploading all history. |
+| Analysis instructions | Bundled, versioned grouping instructions and a validated JSON response. Editable report skills, additional report context, long-form reports, and skill or automation suggestions are V2. |
 | Sample data | Optional, clearly labeled sample history, separate from real history. |
 | Login | Provide a Launch at login setting. |
 | Distribution | Outside V1. See the [V2 plan](v2-plan.md). |
@@ -28,15 +29,17 @@
 
 Build GrebFlow for a one-day company hackathon. It is a native macOS menu bar dictation app for developers. The user holds right Option, speaks an English prompt, releases the key, and gets plain text pasted into the focused input. Terminal and AI coding CLI input are first-class destinations.
 
-The differentiator is analysis of repeated developer work. The dashboard uses local transcript history to show usage and lets the user request a Claude report with suggestions for skills, reusable prompts, or automations. These remain suggestions. The app never executes them.
+The differentiator is an automatically updated overview of what the user repeatedly says in developer prompts. The Usage tab combines local statistics with AI groups of related phrases, sentences, and requests. Group by meaning rather than keyword overlap alone. Requests to "use conventional commits" and "include a commit subject and body" can appear under Commit preparation even though their wording differs.
 
-The demo must show live dictation, local history, basic statistics, and a genuine Anthropic report generated from all retained history in the chosen real or sample dataset, together with the report skill and optional context. Provide sample history because one day of real usage may not contain enough repetition.
+These groups describe requests found in dictation, not proof that the user completed the requested work. Counts and source references come from local records. The app does not generate skills, suggest automations, or execute anything in V1.
+
+The demo must show live dictation, local history, immediate local statistics, and genuine AI grouping that updates automatically after opt-in. Show differently phrased requests grouped together with their source dictations, without generating a report. Provide sample history because one day of real usage may not contain enough repetition.
 
 ## Version 1 boundaries
 
-Build the recording and paste loop, menu bar states, local history, simple statistics, Anthropic reports with an editable report skill and optional context, retention, API key settings, login setting, and separate demo data.
+Build the recording and paste loop, menu bar states, local history, simple statistics, repeated phrase and sentence counts, background AI grouping by meaning, the Usage tab, Delete all history, API key and analysis settings, login setting, and separate demo data.
 
-Defer automatic output muting, automatic bilingual recognition, filler-word rewriting, cloud transcription, saved audio, code or shell-command generation, email delivery, scheduling, multi-provider AI support, accounts, hosted services, synchronization, custom vocabulary management, app exclusions, and distribution. Normal recognizer punctuation is fine. Do not add an LLM cleanup step before paste.
+Defer long-form reports, editable report skills, per-report context, generation of skills or reusable prompts, automation recommendations, automatic output muting, automatic bilingual recognition, filler-word rewriting, cloud transcription, saved audio, code or shell-command generation, email or scheduled report delivery, multi-provider AI support, accounts, hosted services, cross-device synchronization, custom vocabulary management, app exclusions, and distribution. Normal recognizer punctuation is fine. Do not add an LLM cleanup step before paste.
 
 Complete V1 before considering the optional features in the [V2 plan](v2-plan.md).
 
@@ -58,11 +61,13 @@ Icon states: idle microphone, audio-reactive recording icon, distinct processing
 The dashboard can use a simple sidebar or tabs:
 
 - Overview: transcript count, dictated words, recording duration, words per minute, daily usage, and frequent non-stop-words.
+- Usage: frequent phrases and sentences, semantic groups ranked by distinct source dictation count, representative excerpts, and access to the original dictations. Show the real or sample dataset, analyzed versus pending counts, last successful analysis time, and paused/error states. No Generate report button.
 - History: timestamp, transcript, duration, and Copy. Detailed search and editing can wait.
-- Reports: current real or sample dataset, all retained history with its date span and transcript count, report skill editor, optional additional context or specific requests, Generate report, progress, errors, and saved results. No date-range picker in V1.
-- Settings: API key, model ID, retention, shortcut, Launch at login, setup status, demo mode, and Delete all history.
+- Settings: API key, low-cost model ID, automatic grouping consent and pause control, shortcut, Launch at login, setup status, demo mode, and Delete all history.
 
-Statistics should come from local code. Word frequency excludes common English stop words while retaining developer terms. Clearly label words per minute as dictated words divided by recording duration. Do not invent typing-time savings without an agreed baseline.
+Statistics should come from local code and update as soon as a transcript is saved. Word frequency excludes common English stop words while retaining developer terms. Count recurring multiword phrases and sentences using documented, deterministic whitespace and case normalization. Do not ask AI to calculate frequencies. Clearly label words per minute as dictated words divided by recording duration. Do not invent typing-time savings without an agreed baseline.
+
+Semantic groups are AI classifications, not exact phrase matches. Show each group's distinct source dictation count and real excerpts. One dictation may contain several intents and belong to several groups, so group counts must not be presented as mutually exclusive totals. Do not force unrelated or uncertain content into a group. Keep local statistics visible without an API key or connection; cached groups remain visible with their actual analysis time and coverage.
 
 Keep Launch at login off until enabled. Use SMAppService.mainApp and show its real registration/approval state. Test from a stable app bundle location; user or system approval may be needed. [Apple's login item API](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp)
 
@@ -87,10 +92,11 @@ The choices below are implementation defaults. Prefer simple implementations wit
 | Text insertion | NSPasteboard.general and synthetic Command-V through CGEvent. |
 | Persistence | SwiftData backed by a local store in Application Support. Explicitly disable CloudKit integration. |
 | API | A small URLSession client for Anthropic Messages. No third-party SDK needed. |
+| Semantic grouping | A serial background batch coordinator, a bundled grouping prompt, validated JSON assignments, and locally cached groups linked to source transcripts. Start with a low-cost Haiku-family model. |
 | Secrets | Security framework Keychain generic-password item. |
 | Preferences | UserDefaults or AppStorage for non-secret settings. |
 | Login | SMAppService.mainApp registration and actual service status. |
-| Word counts | NaturalLanguage tokenization and a small checked-in English stop-word list. |
+| Local usage counts | NaturalLanguage tokenization, deterministic phrase and sentence counting, and a small checked-in English stop-word list. |
 
 Use a directly run local app bundle with stable identity and development signing where available. Use a non-App-Store, unsandboxed target for the POC's global input integration. Reassess sandboxing and distribution later.
 
@@ -106,18 +112,28 @@ Suggested folders and responsibilities, not a mandatory file count:
 GrebFlow/
   App/                 app entry point, service wiring, dashboard window
   Dictation/           session coordinator, shortcut, audio, speech, paste
-  Storage/             models, local repository, retention, demo seeding
-  Reports/             Anthropic client, report preparation and prompt
+  Storage/             models, local repository, history deletion, demo seeding
+  Analysis/            batch coordinator, Anthropic client, grouping prompt
   Settings/            preferences, Keychain, permissions, login item
   UI/                  status item, dashboard views
 GrebFlowTests/
   session lifecycle, transcript assembly, paste normalization,
-  retention, report input, Anthropic response handling
+  history deletion, grouping input and assignments, Anthropic responses
 ```
 
-Keep one coordinator responsible for each recording session. Views display state and issue actions. Audio callbacks and the event tap do minimal work and hand off to the appropriate worker. Run storage and report preparation away from the audio callback. Use Swift concurrency isolation deliberately rather than adding detached tasks to silence compiler warnings.
+Keep one coordinator responsible for each recording session. Views display state and issue actions. Audio callbacks and the event tap do minimal work and hand off to the appropriate worker. Run storage and analysis preparation away from the audio callback. Use Swift concurrency isolation deliberately rather than adding detached tasks to silence compiler warnings.
 
 Use small replaceable interfaces for speech, key events, paste, storage, and the API where they enable meaningful tests. Avoid a generalized plugin framework. Apply the audio callback and event-sequence rules in [Implementation requirements](#implementation-requirements) before the first live test.
+
+### Keep presentation replaceable
+
+Build the core so a later design plan can replace the dashboard's layout, navigation, and visual components without rewriting dictation, paste, persistence, statistics, or grouping services. Keep layout, colors, typography, and view composition in the presentation code. App wiring creates and owns services independently of individual views.
+
+Views display state and dispatch actions through observable presentation models or controllers. They must not manage microphone sessions, write directly to SwiftData, prepare analysis requests, or calculate usage statistics during rendering. Compute statistics and analysis inputs outside views, respecting storage and concurrency isolation. Core services must not depend on dashboard views, navigation choices, or visual styling. Closing the dashboard must not stop enabled background analysis.
+
+Use the small interfaces already justified by core tests. Do not introduce a plugin framework, generic view-model hierarchy, or full design system for a redesign that has not been specified.
+
+Acceptance: replacing the dashboard's layout and visual components requires no changes to dictation, paste, storage, statistics, or grouping behavior. Core tests run without opening the dashboard and remain unchanged for a presentation-only redesign.
 
 ## Implementation requirements
 
@@ -188,7 +204,7 @@ Apple requires a microphone usage description and documents the audio-input capa
 2. For notDetermined, show an Enable microphone action in Settings. On that action, call AVCaptureDevice.requestAccess(for: .audio) and await the result. macOS presents the approval dialog. GrebFlow cannot enable this permission itself.
 3. For authorized, allow recording once the other dictation prerequisites are ready. Approval must not start a recording automatically; require a fresh shortcut press.
 4. For denied, keep recording disabled and offer Open System Settings with instructions to enable GrebFlow under System Settings > Privacy & Security > Microphone. Do not repeatedly request access because the original dialog will not reappear. Use a pane-opening URL only if verified on the target macOS version; always retain the written navigation path.
-5. For restricted, explain that a system or organization policy blocks access. Do not repeatedly prompt or attempt a workaround. History and reports remain usable.
+5. For restricted, explain that a system or organization policy blocks access. Do not repeatedly prompt or attempt a workaround. History and Usage remain usable.
 6. Recheck on app activation, returning from System Settings, and before every recording. On loss of access or capture failure, stop capture, discard the unfinished session, and expose the actionable setup state. If macOS requires relaunch after a permission change, make that explicit.
 
 Permission setup must finish before normal dictation use so no approval dialog interrupts the hold-to-talk path. An unconfigured shortcut press may show a setup-needed icon/menu state, but must not queue a recording to start later. [Apple's media authorization flow](https://developer.apple.com/documentation/avfoundation/requesting-authorization-to-capture-and-save-media), [authorization status](https://developer.apple.com/documentation/avfoundation/avcapturedevice/authorizationstatus(for:))
@@ -237,6 +253,8 @@ Leave the latest dictated text on the clipboard. Do not implement clipboard rest
 
 Before paste, collapse CR, LF, Unicode line/paragraph separators, tabs, and control characters into spaces. Preserve readable punctuation and Unicode text. Test this with shell metacharacters and transcripts containing code-like words. Do not append Return, generate shell syntax, or run a subprocess.
 
+End every pasted transcript with exactly one trailing space, so a second dictation started right after the first continues the sentence instead of running into the previous word. Trim leading and trailing whitespace after normalization, then append the single space. Never paste a lone space for an empty transcript. The space belongs to the insertion text only: history keeps the recognized text without it, and Copy latest transcript copies the insertion text with the space.
+
 Check the destination before injecting the paste. If the foreground application changed since keydown, keep the text available for manual copy and show a menu error instead of activating an old app. If a captured focused element can be compared reliably, reject a changed field as well. This is a best-effort protection, not a universal way to prove cursor identity across apps.
 
 Treat event posting as a paste attempt. The OS does not provide a generic acknowledgment that a third-party field accepted the text. Persist pasteAttempted or copyOnly, not an unverified insertedSuccessfully claim. Do not automatically retry a paste that could duplicate text.
@@ -245,9 +263,9 @@ When there is no editable destination, retain the transcript in history and allo
 
 The shared macOS clipboard can participate in Universal Clipboard and can be read by clipboard utilities. Do not describe it as app-private storage. [NSPasteboard](https://developer.apple.com/documentation/appkit/nspasteboard)
 
-## Storage and retention
+## Storage and history deletion
 
-Use one real SwiftData store and a distinct demo store. No iCloud capability, remote database client, audio files, or automatic uploads.
+Use one real SwiftData store and a distinct demo store. No iCloud capability, remote database client, audio files, or cross-device history sync. Automatic transcript uploads are limited to explicitly enabled AI grouping for that dataset.
 
 Transcript fields:
 
@@ -259,23 +277,24 @@ Transcript fields:
 
 Store successful nonempty transcripts once. Cancelled and empty sessions need no content record. Keep recoverable recognition failures visible without claiming incomplete text is final.
 
-Report fields:
+Grouping data:
 
-- id, generatedAt, periodStart, periodEnd, sourceTranscriptIDs.
-- periodStart and periodEnd describe the earliest and latest source transcript timestamps, not a user-selected date range.
-- Model ID, prompt version, generated Markdown, and input/output token usage if returned.
-- expiresAt, no later than the earliest expiration of any source transcript.
-- Snapshot of the history deletion generation, used to prevent stale request results being saved.
+- Group ID, short label, concise description of the shared intent, and creation/update timestamps.
+- Memberships linking a group to a source transcript ID and exact supporting excerpts. Do not duplicate entire transcripts in group summaries.
+- Per-transcript analysis state, analyzedAt, model ID, and prompt version. A completed analysis may legitimately assign no groups.
+- Batch metadata with source IDs, completion time, model ID, prompt version, input/output token usage if returned, and a snapshot of the dataset's deletion generation.
 
-Run retention at launch, before history queries and report requests, when settings change, and periodically while running. Use a daily timer plus a wake check. Queries must exclude expired rows even before physical cleanup finishes. Compare rolling 7- or 30-day age against timestamps, and group dashboard days using local calendar time.
+Keep group IDs stable across batches. Store each group/transcript membership once, even if several excerpts support it. Compute group counts from unique source IDs, never from model-supplied totals. Commit validated memberships and completion state together so a failed save does not lose pending work.
 
-Changing from 30 to 7 days purges the older records immediately. Delete all history clears transcripts and reports, cancels report work, invalidates cached statistics, and clears this app's latest clipboard content only if clipboard ownership has not changed. Do not overwrite clipboard data copied by another app. Leave the API key and preferences alone; provide a separate Remove API key action.
+History and cached grouping stay until the user deletes them. Group dashboard days using local calendar time.
 
-Delete saved reports when their source records expire or are deleted. Also clear displayed report text. Before saving a network response, recheck source existence, expiry, and deletion generation so a late response cannot recreate deleted content.
+Delete all history clears both real and sample transcripts, groups, memberships, and analysis progress. Cancel queued and in-flight analysis, invalidate cached statistics, clear displayed excerpts, and clear this app's latest clipboard content only if clipboard ownership has not changed. Do not overwrite clipboard data copied by another app. Leave the API key and preferences alone; provide a separate Remove API key action.
 
-The app cannot run cleanup while fully quit. Perform it on next launch. Normal row deletion is application-level retention, not a guarantee of forensic erasure from SQLite files, OS backups, or already-sent API requests. Do not promise secure erasure or custom encryption in this POC.
+Derived groups must not preserve deleted source content. Remove memberships when sources are deleted and remove groups that have no remaining sources. Before saving a network response, recheck source existence, dataset identity, deletion generation, and whether the request is still authorized. Late responses must not recreate deleted content.
 
-## Anthropic report implementation
+Normal row deletion is application-level deletion, not a guarantee of forensic erasure from SQLite files, OS backups, or already-sent API requests. Do not promise secure erasure or custom encryption in this POC.
+
+## Background AI grouping
 
 Use direct HTTPS from this user's desktop app to Anthropic with their own API key. No hosted proxy and no embedded shared credential. This is a personal-key prototype, not a backend design for distributing a company-funded secret.
 
@@ -283,44 +302,49 @@ Settings uses a secure input field with Save, Replace, Remove, and connection st
 
 Use POST https://api.anthropic.com/v1/messages with x-api-key, anthropic-version: 2023-06-01, Content-Type: application/json, a model, bounded max_tokens, a system prompt, and a user message. x-api-key remains supported in the current official authentication docs. Confirm the API contract again at build time. [API overview](https://platform.claude.com/docs/en/api/overview), [authentication](https://platform.claude.com/docs/en/manage-claude/authentication)
 
-Use claude-sonnet-5-5 as the proposed default model ID and confirm its availability in Anthropic's official catalog before implementation. Make the model ID editable and validate access using the Models API. If the key cannot use it, explain the error and let the user choose an available model. Do not silently substitute providers or assume all accounts have access. Avoid custom temperature or thinking parameters in the first request. [Model catalog](https://platform.claude.com/docs/en/models/overview)
+### Low-cost model and consent
 
-Use one asynchronous non-streaming request initially, with visible progress and Cancel. Keep the main thread and dictation responsive. A 120-second client timeout is an initial default. Streaming report display is optional after the complete request path works.
+Default to an available Claude Haiku-family model suitable for short semantic classifications. Confirm the exact model ID, current pricing, supported request format, and account access against Anthropic's official catalog during implementation. Do not carry over the previous Sonnet default or invent a future Haiku model identifier. Make the model ID editable and validate access using the Models API. A more expensive model requires explicit user choice; never silently escalate or substitute providers. Avoid additional thinking modes or other cost-increasing options by default. [Model catalog](https://platform.claude.com/docs/en/models/overview)
 
-### Report skill and additional context
+Automatic grouping is off until the user opts in. Explain that enabling it sends existing unprocessed and future transcripts to Anthropic in batches using their API key, incurs API charges, and continues while GrebFlow runs even when the dashboard is closed. This is cloud analysis of text, not on-device transcription or a hosted history database.
 
-Create a dedicated report skill as a bundled Markdown instruction document. Apply it to every report request. It defines the report's purpose, structure, evidence requirements, and how to identify repeated work and suggest skills, reusable prompts, or automations. This skill guides report generation; it is separate from any skills suggested by the resulting report. It does not require a skill runner or executable tools.
+Consent is dataset-specific. Enabling real-history grouping does not authorize sample analysis, and switching datasets does not enable uploads. Provide an explicit Enable sample analysis action for the demo dataset. Once enabled, normal analysis requires no Generate report action or confirmation for each batch.
 
-Provide a multiline editor within the app so the user can add, remove, or change the skill's instructions without rebuilding. Include Save and Reset to default actions. Persist the saved override locally across app restarts, keep the bundled default unchanged, and surface save failures. Require nonempty instructions before saving. Unsaved edits must not affect report requests.
+Disabling grouping or removing the key stops new requests, cancels in-flight work, and rejects late results from that authorization. Keep cached groups visible with an honest paused state. Cancellation cannot recall data already sent. Dictation, local counts, history, and cached groups remain usable without an API key or internet connection after speech assets are installed.
 
-Add a separate optional multiline input labeled Additional context or specific requests beside the report controls. Send its contents with all retained transcription history from the current dataset when Generate report is clicked. This input applies only to that report, not to the saved skill. Allow a blank value. Clear it when switching between real and sample datasets so context does not carry over accidentally.
+### Batching and cost control
 
-Compose requests with fixed application rules and the saved report skill in the system prompt, and clearly separated additional context and transcript records in the user message. Fixed rules must retain priority over editable instructions: transcript text is evidence rather than instructions, no tools or execution are available, and suggestions must not claim unsupported evidence or measured savings. The context input can guide the analysis but is not evidence of activity in the history.
+Use one asynchronous non-streaming request at a time for the app. Debounce new work until dictation is idle rather than sending a request for every utterance. Do not start a batch during capture or finalization. Network waits and input preparation must never block the main thread or delay recording and paste.
 
-Snapshot the saved skill and context at Generate report so edits during an in-flight request affect only future reports. Include a skill revision identifier with the report's prompt version. Do not retain extra copies of the skill or context in saved reports or logs. Keep the saved skill as a preference when deleting history, but clear the context input with Delete all history.
+Analyze pending transcripts in bounded batches, including any backlog after opt-in. Choose conservative batch sizes, an idle debounce, a bounded output allowance, and a per-day request or token budget during implementation. Document their initial values. When the budget is reached, pause with a visible status until the budget resets; do not silently bypass it or switch models. Track actual token usage where returned, but do not claim an exact monetary cost without verified pricing.
 
-Show that the request sends the report skill, additional context, and all retained history from the current dataset to Anthropic. Validate the complete request against the selected model's input and API request limits, reserving room for the response. Show an explicit error if it cannot fit. Never truncate instructions or omit transcripts to make it fit.
+Send only unprocessed transcripts from one dataset, along with existing group IDs, labels, and concise definitions from that dataset. Do not resend the whole history or all earlier excerpts to classify a new batch. Use existing definitions to reuse groups across batches. Keep successful results and pending progress across app restarts; reopening the dashboard must not trigger reanalysis of completed records.
 
-### Report generation flow
+Validate the complete request against the selected model's input limit and encoded request-size limit, reserving space for the output. Split pending work into fitting batches rather than truncating transcripts. If a single transcript or the group definitions cannot fit, show the limitation and keep affected records visibly unanalyzed. Do not silently drop records or introduce a vector database, embeddings service, or generalized clustering framework in V1.
 
-1. Run retention and snapshot all remaining transcripts from the current dataset. Exclude expired or deleted history and never mix real and sample records. Do not apply an additional date filter.
-2. Show the dataset, actual history date span, transcript count, saved report skill, optional context input, and text stating that Generate report sends these inputs to Anthropic. Validate and snapshot the instructions and context before sending. The button is the explicit send action; do not add a modal confirmation on every run.
-3. Include dated transcript IDs, recording times, text, and locally computed counts. Do not send audio, app window contents, clipboard history, or the API key as prompt content.
-4. Include the full text of every retained transcript in chronological order in one request, together with the report skill and optional context. Remove the arbitrary 100,000-byte transcript ceiling. If the complete input exceeds the selected model's context window or API request limit, explain that all history could not be sent and do not generate a partial report. Handle a provider-side size rejection explicitly as well. No automatic omission, summarization, chunking, or subset retry in V1.
-5. Apply the saved report skill and additional context. The default skill asks for a concise Markdown report in English with repeated workflows, evidence using real supplied transcript IDs and short excerpts, and up to five practical suggestions for a skill, reusable prompt, or automation. Ask the model to distinguish observed repetitions from inferred similarities. Say when evidence is insufficient.
-6. Treat transcript text as quoted user data, not instructions for the report generator. Include no tools, shell access, web search, or automation execution. Do not claim measured time savings from speculative recommendations.
-7. Read all text content blocks from the response. Handle non-text blocks without assuming the first block is a string. Distinguish successful completion from refusal or max-token truncation. Start with an output allowance of 4,096 tokens and adjust only if evidence requires it.
-8. Save completed results and their source IDs after rechecking deletion state. Render as ordinary text/Markdown with Copy report. Do not automatically open links, install skills, or execute suggestions.
+A 120-second client timeout is an initial default. On authentication, model access, rate-limit, service, network, or response-validation failure, preserve cached results and pending records, pause the affected queue, and offer Retry. Do not automatically repeat failed billable requests. Resume normal successful batches automatically; analysis must not require manual generation.
 
-Handle missing/invalid keys, unavailable models, offline state, rate limits, service errors, malformed responses, truncation, and cancellation. Keep existing reports visible and offer Retry; do not automatically repeat billable report requests. Dictation continues without an API key or internet connection after speech assets are installed.
+### Grouping contract
+
+Use a bundled, versioned instruction document for semantic grouping. No skill runner, editable report prompt, or per-request context editor is needed in V1. Ask for short English group labels, concise definitions, and structured JSON assignments, not a Markdown report or recommendations.
+
+Each request snapshots its dataset, source IDs, deletion generation, model ID, prompt version, and authorization state. Include transcript text as clearly separated quoted data. Send no audio, destination app metadata, field contents, clipboard history, or API key as prompt content. Existing group labels and descriptions are data as well, never instructions. Give the model no tools, shell access, or ability to execute suggestions.
+
+Group related intent even when wording differs. Distinguish that from literal phrase frequency. For example, "use conventional commits", "write a conventional commit message", and "include a commit subject and body" should be recognizable as related commit-preparation requests. A test-writing request must not join that group merely because both mention a repository. Allow several supported groups for a multi-intent dictation and no assignment where the intent is unclear.
+
+Require one result entry per submitted transcript ID, including empty assignments where appropriate. Assignments reference an existing group ID or a proposed new group and exact supporting excerpts from that transcript. New groups receive durable app-generated IDs, reused by later batches. Do not ask the model to invent counts, completed activities, time savings, skills, prompts, or automations.
+
+Read all text content blocks from the API response without assuming the first block is a string. Reject refusal, max-token truncation, malformed JSON, unknown source/group IDs, missing source results, and excerpts that are not present in the source text. Validate the entire batch before committing it. A rejected or cancelled response must not mark its sources analyzed or overwrite valid cached groups.
+
+Before saving, recheck the dataset, source existence, deletion generation, and request authorization. Persist valid assignments idempotently and compute counts locally. Refresh the Usage tab from stored results, showing analysis time and coverage. Existing groups remain readable during pending work and failures. Global regrouping, manual merge/split controls, and automatic reanalysis of completed history after a model or prompt change are outside V1.
 
 Local retention and cloud retention are distinct. Anthropic's commercial API policy currently describes standard backend deletion within 30 days with exceptions and contractual variations. The app's Delete all history only deletes local data and cannot revoke a request already sent. Explain that distinction briefly in Settings. [Anthropic data retention](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data)
 
 ## Demo data and presentation
 
-Seed approximately 60 short English transcripts across the preceding seven days, relative to the current date. Include varied paraphrases of repeated developer tasks such as writing tests, preparing PR descriptions, reviewing changes, explaining code, and repeating project instructions. Add a few unrelated requests so every entry is not part of a contrived pattern.
+Seed approximately 60 short English transcripts across the preceding seven days, relative to the current date. Include varied paraphrases of repeated developer tasks such as writing tests, preparing commit messages and PR descriptions, reviewing changes, explaining code, and repeating project instructions. Include the conventional-commit and subject/body examples above, a few multi-intent requests, and unrelated requests so every entry is not part of a contrived pattern.
 
-Use fictional project names and no real secrets. Mark the dashboard and report input as sample data. Make seeding idempotent and provide Reset sample data. Switching datasets must cancel or isolate pending requests and clear the displayed selection. Live microphone sessions always save to real history, even when the dashboard is viewing samples.
+Use fictional project names and no real secrets. Mark sample history and its groups clearly. Make seeding idempotent and provide Reset sample data, which also removes sample groups and invalidates pending sample analysis. Switching datasets must isolate pending requests and clear the displayed selection without authorizing uploads. Live microphone sessions always save to real history, even when the dashboard is viewing samples.
 
 Demo script:
 
@@ -328,10 +352,11 @@ Demo script:
 2. Hold right Option and dictate a developer request. Point to the reactive menu bar icon.
 3. Release, observe the plain text, and manually submit only if wanted.
 4. Open real history and show that the new transcript exists.
-5. Switch to labeled sample history, show usage and repeated terms, and click Generate report.
-6. Explain one Claude recommendation and its supporting excerpts. Copy the report without executing anything.
+5. Switch to labeled sample history and open Usage. Show local repeated phrases and sentences, then explicitly enable sample analysis if not already enabled.
+6. Observe background grouping without a Generate report action. Open Commit preparation and show differently phrased source requests, their excerpts, and the locally calculated distinct dictation count.
+7. With real-history analysis enabled, dictate another related request. Show local statistics updating immediately and its group membership updating after a background batch, without interrupting dictation.
 
-Generate and retain one sample report during rehearsal. If the service is unavailable during presentation, show that saved report with its generation timestamp and label it as previously generated. Do not present a fixture as a fresh AI response.
+Run real sample-data grouping with the configured Haiku-family model during rehearsal and retain the results. If the service is unavailable during presentation, show cached groups with their analysis timestamp and paused/pending state. Do not present a fixture or cached result as a fresh AI response.
 
 ## Build order
 
@@ -339,15 +364,15 @@ Build in dependency order. Adjust, add, or remove features with the user as impl
 
 1. Create the Xcode target, stable app identity and run path, retained menu icon, microphone usage description, applicable entitlements, permission setup with restart/recheck, and speech asset setup.
 2. Implement the nonisolated Sendable audio tap and balanced paste-event factory with their automated tests before connecting live capture. Connect right Option, microphone capture, streaming transcription, finalization, and paste. Verify at least five consecutive hold/release/paste cycles in a terminal and a regular text field, with no refocusing click, automatic Enter, or focus stealing. Keep the app alive through recording and return to Ready after each session.
-3. Add local transcript history and retention. Verify persistence across restarts and deletion of expired records.
-4. Add the dashboard statistics and separate sample store.
-5. Add Keychain settings, the default report skill, its in-app editor, the additional-context input, and on-demand Claude reports. Generate a real report from sample history using the saved skill and a specific request.
+3. Add local transcript history and Delete all history. Verify persistence across restarts and that deletion invalidates derived data and pending analysis.
+4. Add the separate sample store, local statistics, repeated phrase/sentence counts, and the Usage tab. Keep presentation separate from core services.
+5. Add Keychain settings, a verified low-cost Haiku-family model, dataset-specific consent, the grouping contract, and background batching with cached assignments. Exercise one real sample-data batch early, then verify successive batches reuse groups and update Usage without manual generation.
 6. Complete the login setting, shortcut picker, and recovery behavior.
-7. Run end-to-end checks, measure latency, and rehearse the demo with a saved, labeled report available for network failure.
+7. Run end-to-end checks, measure latency with analysis enabled, and rehearse the demo with genuine cached sample groups available for network failure.
 
 ## Validation and acceptance
 
-Use targeted tests for the parts that can duplicate text, leak expired data, or mishandle asynchronous sessions. Manual testing is essential for permissions and cross-app input.
+Use targeted tests for the parts that can duplicate text, leak deleted data, or mishandle asynchronous sessions. Manual testing is essential for permissions and cross-app input.
 
 Automated checks:
 
@@ -357,12 +382,16 @@ Automated checks:
 - Transcript assembly replaces revised segments and commits each range once.
 - Release during startup, double release, cancellation, stale results, timeout, and rapid repeated gestures never create a stuck recording or duplicate paste.
 - Paste normalization removes line breaks and control characters while preserving ordinary text. No insertion path posts Return.
-- In-memory persistence tests cover 7/30-day boundaries, settings changes, source report deletion, and late network responses after Delete all history.
+- Every nonempty insertion text ends with exactly one space, with no doubled space when the recognizer already returned trailing whitespace. Empty transcripts produce no insertion text.
+- In-memory persistence tests cover Delete all history removing transcripts, groups, memberships, and pending progress, plus late network responses after deletion or sample reset.
 - Sample and real stores remain isolated; reset and seeding do not duplicate records.
-- Report preparation includes every retained transcript in chronological order from only the current dataset, excludes expired or deleted records, and applies no extra date filter or arbitrary transcript-byte ceiling. Oversized complete requests produce an explicit error rather than omission, summarization, or a partial report.
-- Report requests apply the default or saved skill, include optional context separately from transcript evidence, and preserve fixed application rules. Cover blank context, rejected empty skills, oversized inputs, and edits during an in-flight request.
-- Skill edits survive restart, Reset to default restores the bundled instructions, and failed saves remain visible. Dataset changes and Delete all history clear report context without deleting the saved skill.
-- URLProtocol-based API tests cover authentication errors, rate limits, multiple content blocks, truncated output, cancellation, and a successful saved report without using a real key.
+- Local phrase/sentence normalization and frequency counts remain deterministic. Group counts use distinct source dictations, ignore duplicate memberships, and handle one dictation in several groups without claiming an exclusive total.
+- No transcript uploads occur before dataset-specific opt-in. Disabling analysis or removing the key cancels work and prevents late results from being saved. Dataset switching never grants consent.
+- Background scheduling batches pending records after idle, respects the daily budget, and never starts requests during capture/finalization. Completed records are not resent on view refresh or restart.
+- Input preparation includes only pending records and group definitions from one dataset. Requests respect complete input/output and encoded-size limits; oversized records remain visibly pending rather than being truncated or silently dropped.
+- Validated mock responses reuse stable group IDs across batches, support new groups, multiple intents, and empty assignments, and reject unknown IDs, missing source results, unsupported excerpts, and malformed payloads.
+- Persisting an analysis batch is atomic and idempotent. Save failures keep work pending; cached groups, analysis metadata, and backlog survive restart without duplicated memberships.
+- URLProtocol-based API tests cover authentication errors, unavailable models without automatic escalation, rate limits, multiple content blocks, refusal, truncation, cancellation, and a successful saved grouping batch without using a real key. Failed requests pause visibly rather than automatically retrying.
 
 Manual checks on the user's Mac:
 
@@ -370,24 +399,26 @@ Manual checks on the user's Mac:
 - Deny microphone access, enable it later in System Settings, and revoke it after use. Verify setup status, recovery, and that no recording starts automatically after approval. Confirm keyboard/paste permission status remains separate.
 - After granting keyboard/paste permissions, quit and reopen the same signed app if capability checks remain stale. Verify Allowed and Ready after relaunch, with no automatic recording.
 - Verify the menu icon exists before capture, reacts during capture, and remains present after multiple recordings and after closing the dashboard. If it vanishes, check process liveness and crash reports.
-- Complete at least five consecutive dictations into the same terminal input without clicking between them. Start the next hold as soon as the previous text appears. Repeat in a regular text field. Confirm no stranded Command state, skipped paste, focus loss, or duplicate text.
+- Complete at least five consecutive dictations into the same terminal input without clicking between them. Start the next hold as soon as the previous text appears. Repeat in a regular text field. Confirm no stranded Command state, skipped paste, focus loss, or duplicate text, and that consecutive transcripts are separated by a single space.
 - Terminal with a shell input line and with an AI CLI, plus another installed terminal if available.
 - Editor input, browser text area, and native text field. Test cursor insertion and replacing a selection.
 - Right Option release, left Option independence, both Option keys held, and other shortcut conflicts.
 - Silence, a quick tap, a 5-second phrase, a 30-second prompt, a 2-minute prompt, and developer terms such as SwiftUI, TypeScript, GitHub, and repository names.
 - No auto-submit in terminal, including when recognized text contains line breaks or shell-like content.
 - Destination app changes, dashboard opened mid-session, permission denial, sleep/wake, and microphone disconnection.
-- Retention after restart, deleting history while a report is in flight, invalid API key, no internet, and sample-mode report generation.
-- Edit and save the report skill in the app, restart, and verify the saved instructions remain. Generate a report with additional context, confirm it follows the requested focus while citing transcript evidence, and verify Reset to default works.
+- History and cached groups after restart, deletion or sample reset during analysis, invalid API key, no internet, and budget exhaustion. Local statistics and dictation remain usable throughout.
+- Enable automatic grouping explicitly and verify that the configured Haiku-family model groups the conventional-commit and subject/body paraphrases together while keeping unrelated requests separate. Inspect original excerpts and counts; mocked API tests alone cannot prove semantic quality.
+- Dictate a related new request after a group exists. Verify immediate local count updates, later automatic group updates without Generate report, and no dictation latency or focus regression while an API request is in flight.
+- Verify paused, pending, last-analyzed, and analyzed/total coverage states are honest. Disable analysis and confirm new transcripts stay local; switch datasets and confirm consent and cached results remain separate.
 - Stable menu icon placement and no Dock or overlay interruption during dictation.
 - Launch at login from the stable app bundle location, with registration errors shown honestly.
 
 Measure with a monotonic clock: shortcut down, first captured buffer, first recognition result, key release, final transcript, clipboard write, and paste-event posting. Store timing metadata only. Event posting is not the same as visible insertion; confirm visible delay manually in the target apps. Record cold start separately from warm runs, using about ten short and five longer dictations. Report typical and slow observed results without overstating statistical confidence.
 
-Version 1 is demo-ready when live dictation and terminal paste work repeatedly without refocusing between recordings, no audio is saved, real history survives restart, retention works, the menu icon reflects activity, the dashboard shows useful basic data, and a real Anthropic request produces a readable report from selected data. Subsecond latency is a goal rather than an acceptance gate.
+Version 1 is demo-ready when live dictation and terminal paste work repeatedly without refocusing between recordings, no audio is saved, real history survives restart, Delete all history removes derived data as well, and the menu icon reflects activity. Usage must show immediate local statistics and genuine, cached Haiku-family grouping of differently phrased requests, with source evidence and accurate counts. After opt-in, new dictations update groups through background batches without Generate report. Consent, offline behavior, and pending coverage must remain clear. Subsecond latency is a goal rather than an acceptance gate.
 
 ## Instructions for the implementation handoff
 
 Start with the core loop and keep the app runnable after each increment. Follow [Implementation requirements](#implementation-requirements) when writing capture and paste code. Implement the callback and event factories with their tests before live capture. Verify native APIs against the installed SDK. Add dependencies only when they save more work than they introduce.
 
-Have the user grant dictation permissions and install English speech assets through the setup flow. Verify live dictation, consecutive paste, and menu bar behavior on the target Mac. Complete the compatibility matrix, Anthropic report test, login registration checks, and latency measurements before claiming demo readiness. Record automated results and manual observations separately. Do not assume that every app, field, or machine is compatible.
+Have the user grant dictation permissions and install English speech assets through the setup flow. Verify live dictation, consecutive paste, and menu bar behavior on the target Mac. Complete the compatibility matrix, low-cost model access and real semantic-grouping check, consent and deletion checks, login registration checks, and latency measurements before claiming demo readiness. Record automated results and manual observations separately. Do not assume that every app, field, or machine is compatible.

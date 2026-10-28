@@ -10,6 +10,17 @@ Status: optional follow-up work. Start only after the [V1 core plan](core-plan.m
 4. Automatic weekly reports with a local notification or chosen delivery channel. Decide what happens when the app is closed, offline, or asleep before implementing scheduling.
 5. Optional filler cleanup, report streaming, exclusion controls, and richer evidence navigation. Keep any cleanup outside the default low-latency dictation path until measured.
 6. Optional "Mute other audio while recording" setting, off by default. Mute playback when right Option starts an authorized recording and restore it on release, without waiting for transcription or paste. Leave the microphone active. A basic device mute is small, but reliable restoration and output-device coverage need additional work, so this belongs in version 2.
+7. Rolling history retention: default 30 days, optional 7 days, chosen in Settings. V1 keeps history until Delete all history. See the retention requirements below.
+
+## Retention requirements
+
+Run retention at launch, before history queries and report requests, when the setting changes, and periodically while running. Use a daily timer plus a wake check. Queries must exclude expired rows even before physical cleanup finishes. Compare rolling 7- or 30-day age against timestamps.
+
+Changing from 30 to 7 days purges the older records immediately. The app cannot run cleanup while fully quit, so perform it on next launch.
+
+Reports must not preserve expired source history. Give each saved report an expiresAt no later than the earliest expiration of any source transcript, and delete reports when their sources expire. Before saving a network response, also recheck expiry alongside the existing deletion-generation check.
+
+Tests should cover 7/30-day boundaries, setting changes, report expiry, and retention after restart.
 
 ## Developer-friendly transcription
 
