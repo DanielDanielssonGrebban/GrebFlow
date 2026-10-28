@@ -111,6 +111,9 @@ struct DashboardView: View {
                     Label(tab.label, systemImage: tab.systemImage).tag(tab)
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                SidebarLogo()
+            }
             .scrollContentBackground(.hidden)
             .background(Theme.sidebar.ignoresSafeArea())
             .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
@@ -138,6 +141,32 @@ struct DashboardView: View {
         .tint(Theme.accent)
         .fontDesign(.monospaced)
         .groupBoxStyle(ThemedGroupBoxStyle())
+    }
+}
+
+/// The wordmark from the README, traced to a vector PDF so it stays sharp at
+/// any size. It's drawn as a template, so it takes whatever color it's given.
+struct SidebarLogo: View {
+    private static let image: NSImage? = {
+        guard let url = Bundle(for: BundleToken.self).url(forResource: "GrebFlowLogo", withExtension: "pdf"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.isTemplate = true
+        return image
+    }()
+
+    var body: some View {
+        if let image = Self.image {
+            Image(nsImage: image)
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 14)
+                .accessibilityLabel("GrebFlow")
+        }
     }
 }
 
