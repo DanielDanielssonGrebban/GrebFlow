@@ -85,6 +85,29 @@ enum DictationShortcut: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Which speech recognizer turns audio into text. Only the selected one
+/// downloads and loads its model.
+enum Recognizer: String, CaseIterable, Identifiable, Sendable {
+    case whisper
+    case apple
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .whisper: "Whisper large-v3-turbo"
+        case .apple: "Apple Speech"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .whisper: "Best with developer terms like JSON. Text arrives a moment after you release the key. One-time 632 MB download, and the first load takes a few minutes."
+        case .apple: "Built into macOS and fast, with text as you speak. Often writes JSON as Jason."
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class Preferences {
@@ -104,6 +127,10 @@ final class Preferences {
 
     var dataset: Dataset {
         didSet { defaults.set(dataset.rawValue, forKey: Keys.dataset) }
+    }
+
+    var recognizer: Recognizer {
+        didSet { defaults.set(recognizer.rawValue, forKey: Keys.recognizer) }
     }
 
     /// Consent to send transcripts for AI grouping, given separately for
@@ -126,6 +153,7 @@ final class Preferences {
         modelID = defaults.string(forKey: Keys.modelID) ?? Self.defaultModelID
         shortcut = defaults.string(forKey: Keys.shortcut).flatMap(DictationShortcut.init(rawValue:)) ?? .rightOption
         dataset = defaults.string(forKey: Keys.dataset).flatMap(Dataset.init(rawValue:)) ?? .real
+        recognizer = defaults.string(forKey: Keys.recognizer).flatMap(Recognizer.init(rawValue:)) ?? .apple
         realAnalysisEnabled = defaults.bool(forKey: Keys.realAnalysis)
         sampleAnalysisEnabled = defaults.bool(forKey: Keys.sampleAnalysis)
         sampleSeedVersion = defaults.integer(forKey: Keys.sampleSeedVersion)
@@ -148,6 +176,7 @@ final class Preferences {
         static let modelID = "anthropicModelID"
         static let shortcut = "dictationShortcut"
         static let dataset = "dashboardDataset"
+        static let recognizer = "speechRecognizer"
         static let realAnalysis = "analysisEnabled.real"
         static let sampleAnalysis = "analysisEnabled.sample"
         static let sampleSeedVersion = "sampleSeedVersion"

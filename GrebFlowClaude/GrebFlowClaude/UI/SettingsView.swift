@@ -90,7 +90,7 @@ struct SettingsView: View {
                 ok: snapshot.eventTapInstalled,
                 detail: snapshot.eventTapInstalled ? "Running" : "Starts once Input Monitoring and Accessibility are allowed."
             ) { EmptyView() }
-            SetupRow(title: "English speech model", ok: snapshot.speech == .installed, detail: snapshot.speech.label) {
+            SetupRow(title: snapshot.modelName, ok: snapshot.speech == .installed, detail: snapshot.speech.label) {
                 switch snapshot.speech {
                 case .notInstalled, .failed:
                     Button("Download") { Task { await model.setup.installSpeechModel() } }
@@ -103,7 +103,7 @@ struct SettingsView: View {
             SetupRow(
                 title: "Recognizer",
                 ok: snapshot.recognizerPrepared,
-                detail: snapshot.recognizerError ?? (snapshot.recognizerPrepared ? "Ready" : "Prepares after the speech model is installed")
+                detail: snapshot.recognizerError ?? (snapshot.recognizerPrepared ? "Ready" : (snapshot.speech == .installed ? snapshot.preparingMessage : "Prepares after the model is downloaded"))
             ) { EmptyView() }
 
             HStack {
@@ -133,6 +133,18 @@ struct SettingsView: View {
 
     private var dictationSection: some View {
         Section("Dictation") {
+            Picker("Speech model", selection: Binding(
+                get: { model.preferences.recognizer },
+                set: { model.setRecognizer($0) }
+            )) {
+                ForEach(Recognizer.allCases) { recognizer in
+                    Text(recognizer.label).tag(recognizer)
+                }
+            }
+            .pickerStyle(.menu)
+            Text(model.preferences.recognizer.detail)
+                .font(.callout)
+                .foregroundStyle(.secondary)
             Picker("Hold to dictate", selection: Binding(
                 get: { model.preferences.shortcut },
                 set: { model.setShortcut($0) }

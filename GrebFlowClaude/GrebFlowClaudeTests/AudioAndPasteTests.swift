@@ -376,3 +376,47 @@ struct DeveloperLanguageModelTests {
         }
     }
 }
+
+@Suite("Whisper")
+struct WhisperTests {
+    @Test func skipsShortAndSilentClips() {
+        let rate = 16_000.0
+        #expect(!WhisperAudioGate.isWorthTranscribing([Float](repeating: 0.1, count: 1_000), sampleRate: rate))
+        #expect(!WhisperAudioGate.isWorthTranscribing([Float](repeating: 0, count: 32_000), sampleRate: rate))
+        let tone = (0..<32_000).map { 0.2 * sin(Float($0) * 2 * .pi * 440 / 16_000) }
+        #expect(WhisperAudioGate.isWorthTranscribing(tone, sampleRate: rate))
+    }
+
+    @Test func dropsSilenceMarkersButKeepsRealParentheses() {
+        #expect(WhisperAudioGate.clean("[BLANK_AUDIO]") == "")
+        #expect(WhisperAudioGate.clean(" (silence) ") == "")
+        #expect(WhisperAudioGate.clean("Parse the JSON [MUSIC] response.") == "Parse the JSON response.")
+        #expect(WhisperAudioGate.clean("Make the flag (optional) for now.") == "Make the flag (optional) for now.")
+    }
+
+    @Test func promptListsGrebFlowButNotJSONOrJason() {
+        #expect(WhisperPrompt.terms.contains("GrebFlow"))
+        #expect(!WhisperPrompt.terms.contains { $0.lowercased() == "json" || $0.lowercased() == "jason" })
+        #expect(WhisperPrompt.text == "GrebFlow, npm, TypeScript, Xcode.")
+    }
+
+    /// Apple needs no download, so a fresh install can dictate right away.
+    @MainActor @Test func appleIsTheDefaultAndWhisperIsRemembered() {
+        let defaults = UserDefaults(suiteName: "recognizer-default-\(UUID())")!
+        #expect(Preferences(defaults: defaults).recognizer == .apple)
+        defaults.set("whisper", forKey: "speechRecognizer")
+        #expect(Preferences(defaults: defaults).recognizer == .whisper)
+    }
+
+    @Test func modelCountsAsInstalledOnlyWhenEveryFileIsThere() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("whisper-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for file in WhisperModel.requiredFiles.dropLast() {
+            FileManager.default.createFile(atPath: folder.appendingPathComponent(file).path, contents: Data())
+        }
+        #expect(!WhisperModel.isInstalled(at: folder))
+        FileManager.default.createFile(atPath: folder.appendingPathComponent(WhisperModel.requiredFiles.last!).path, contents: Data())
+        #expect(WhisperModel.isInstalled(at: folder))
+    }
+}

@@ -3,7 +3,8 @@ import Foundation
 import Speech
 
 /// Receives microphone buffers on the audio queue, copies them, and hands
-/// them to a serial conversion queue that feeds the speech analyzer.
+/// them to a serial conversion queue that feeds a sink: the speech analyzer
+/// for Apple's recognizer, or a sample buffer for Whisper.
 ///
 /// Everything here runs off the main actor. UI-facing updates (level, first
 /// buffer timing) go back through `Task { @MainActor in ... }` inside the
@@ -12,10 +13,16 @@ final class AudioPipeline: @unchecked Sendable {
     typealias LevelHandler = @Sendable (Float) -> Void
     typealias FirstBufferHandler = @Sendable (UInt64) -> Void
 
+    /// Where converted audio goes. `finish` runs once, after the last buffer.
+    struct Sink: Sendable {
+        let yield: @Sendable (AVAudioPCMBuffer) -> Void
+        let finish: @Sendable () -> Void
+    }
+
     private let lock = NSLock()
     private let queue = DispatchQueue(label: "com.grebban.GrebFlowClaude.audio-conversion", qos: .userInitiated)
     private let targetFormat: AVAudioFormat
-    private let continuation: AsyncStream<AnalyzerInput>.Continuation
+    private let sink: Sink
     private let onLevel: LevelHandler
     private let onFirstBuffer: FirstBufferHandler
 
@@ -31,14 +38,31 @@ final class AudioPipeline: @unchecked Sendable {
 
     init(
         targetFormat: AVAudioFormat,
-        continuation: AsyncStream<AnalyzerInput>.Continuation,
+        sink: Sink,
         onLevel: @escaping LevelHandler,
         onFirstBuffer: @escaping FirstBufferHandler
     ) {
         self.targetFormat = targetFormat
-        self.continuation = continuation
+        self.sink = sink
         self.onLevel = onLevel
         self.onFirstBuffer = onFirstBuffer
+    }
+
+    convenience init(
+        targetFormat: AVAudioFormat,
+        continuation: AsyncStream<AnalyzerInput>.Continuation,
+        onLevel: @escaping LevelHandler,
+        onFirstBuffer: @escaping FirstBufferHandler
+    ) {
+        self.init(
+            targetFormat: targetFormat,
+            sink: Sink(
+                yield: { continuation.yield(AnalyzerInput(buffer: $0)) },
+                finish: { continuation.finish() }
+            ),
+            onLevel: onLevel,
+            onFirstBuffer: onFirstBuffer
+        )
     }
 
     /// Called on the audio queue. Does the minimum: bookkeeping under the
@@ -59,13 +83,13 @@ final class AudioPipeline: @unchecked Sendable {
     }
 
     /// Stops accepting input. Buffers already queued are still converted and
-    /// handed to the analyzer before the input stream ends.
+    /// handed to the sink before it finishes.
     func close() async {
         lock.withLock { isClosed = true }
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             queue.async { [self] in
                 flushConverter()
-                continuation.finish()
+                sink.finish()
                 done.resume()
             }
         }
@@ -83,13 +107,13 @@ final class AudioPipeline: @unchecked Sendable {
             return nil
         }
         guard status != .error, error == nil, output.frameLength > 0 else { return }
-        continuation.yield(AnalyzerInput(buffer: output))
+        sink.yield(output)
     }
 
     private func process(_ buffer: AVAudioPCMBuffer) {
         publishLevel(for: buffer)
         guard let converted = convert(buffer) else { return }
-        continuation.yield(AnalyzerInput(buffer: converted))
+        sink.yield(converted)
     }
 
     private func publishLevel(for buffer: AVAudioPCMBuffer) {

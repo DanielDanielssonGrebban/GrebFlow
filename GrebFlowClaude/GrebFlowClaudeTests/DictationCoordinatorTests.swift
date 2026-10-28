@@ -397,3 +397,56 @@ struct SetupControllerTests {
         #expect(prepares.value == 1)
     }
 }
+
+@MainActor
+@Suite("Recognizer switching")
+struct RecognizerSwitchTests {
+    @Test func sessionFinishesOnTheEngineItStartedWith() async throws {
+        let apple = FakeEngine()
+        apple.transcript = "from apple"
+        let whisper = FakeEngine()
+        whisper.transcript = "from whisper"
+        let engine = SwitchingEngine(engines: [.apple: apple, .whisper: whisper], selected: .apple)
+
+        try await engine.start { _ in }
+        await engine.select(.whisper)
+        #expect(try await engine.finish() == "from apple")
+        #expect(whisper.startCount == 0)
+
+        try await engine.start { _ in }
+        #expect(try await engine.finish() == "from whisper")
+    }
+
+    @Test func assetsFollowTheSelection() async {
+        let apple = FakeSpeechAssets()
+        let whisper = FakeSpeechAssets()
+        whisper.state = .notInstalled
+        let selected = LockedBox(Recognizer.apple)
+        let assets = SwitchingAssets(assets: [.apple: apple, .whisper: whisper], selected: { selected.value })
+        #expect(await assets.status() == .installed)
+        selected.mutate { $0 = .whisper }
+        #expect(await assets.status() == .notInstalled)
+    }
+
+    @Test func switchingStartsSetupOverForTheNewModel() async {
+        let permissions = FakePermissions()
+        permissions.microphone = .authorized
+        let apple = FakeSpeechAssets()
+        let whisper = FakeSpeechAssets()
+        whisper.state = .notInstalled
+        let selected = LockedBox(Recognizer.apple)
+        let setup = SetupController(
+            permissions: permissions,
+            speechAssets: SwitchingAssets(assets: [.apple: apple, .whisper: whisper], selected: { selected.value }),
+            installEventTap: { true },
+            prepareRecognizer: {}
+        )
+        await setup.refresh()
+        #expect(setup.isReady)
+
+        selected.mutate { $0 = .whisper }
+        await setup.recognizerChanged()
+        #expect(!setup.isReady)
+        #expect(setup.snapshot.problem == "English speech model not downloaded")
+    }
+}

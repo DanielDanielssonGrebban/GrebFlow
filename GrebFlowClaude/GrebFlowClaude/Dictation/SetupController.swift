@@ -10,6 +10,8 @@ struct SetupSnapshot: Equatable, Sendable {
     var speech: SpeechAssetState = .unknown
     var recognizerPrepared = false
     var recognizerError: String?
+    var modelName = "English speech model"
+    var preparingMessage = "Preparing recognizer"
     /// A keyboard permission was granted while the app was running. macOS
     /// usually only applies it after a restart.
     var relaunchRecommended = false
@@ -32,14 +34,14 @@ struct SetupSnapshot: Equatable, Sendable {
         if !eventTapInstalled { return "Shortcut listener not running. Quit and reopen GrebFlowClaude." }
         switch speech {
         case .installed: break
-        case .unsupported: return "English speech model unsupported"
-        case .downloading: return "Downloading English speech model"
-        case .failed: return "English speech model download failed"
-        case .unknown: return "Checking English speech model"
-        case .notInstalled: return "English speech model not downloaded"
+        case .unsupported: return "\(modelName) unsupported"
+        case .downloading: return "Downloading \(modelName)"
+        case .failed: return "\(modelName) download failed"
+        case .unknown: return "Checking \(modelName)"
+        case .notInstalled: return "\(modelName) not downloaded"
         }
         if let recognizerError { return "Recognizer failed to prepare: \(recognizerError)" }
-        if !recognizerPrepared { return "Preparing recognizer" }
+        if !recognizerPrepared { return preparingMessage }
         return nil
     }
 
@@ -64,6 +66,9 @@ final class SetupController {
     @ObservationIgnored private let prepareRecognizer: () async throws -> Void
     @ObservationIgnored private var isPreparing = false
     @ObservationIgnored private var isInstallingSpeech = false
+    /// Bumped when the user picks another recognizer, so results from work
+    /// started for the old one are ignored.
+    @ObservationIgnored private var recognizerGeneration = 0
     /// Keyboard permissions as they were at launch.
     @ObservationIgnored private var launchGrants: (listen: Bool, accessibility: Bool)?
 
@@ -109,10 +114,23 @@ final class SetupController {
 
     func refresh() async {
         refreshPermissions()
+        snapshot.modelName = speechAssets.modelName
+        snapshot.preparingMessage = speechAssets.preparingMessage
         if !isInstallingSpeech {
             snapshot.speech = await speechAssets.status()
         }
         await prepareIfPossible()
+    }
+
+    /// The selected recognizer changed. Its model may not be downloaded or
+    /// loaded yet, so start over from the status check.
+    func recognizerChanged() async {
+        recognizerGeneration += 1
+        isInstallingSpeech = false
+        snapshot.speech = .unknown
+        snapshot.recognizerPrepared = false
+        snapshot.recognizerError = nil
+        await refresh()
     }
 
     /// One button per permission. macOS only shows its own dialog once, so
@@ -153,14 +171,18 @@ final class SetupController {
 
     func installSpeechModel() async {
         guard !isInstallingSpeech else { return }
+        let generation = recognizerGeneration
         isInstallingSpeech = true
         snapshot.speech = .downloading(0)
         do {
             try await speechAssets.install { [weak self] fraction in
-                self?.snapshot.speech = .downloading(fraction)
+                guard let self, self.recognizerGeneration == generation else { return }
+                self.snapshot.speech = .downloading(fraction)
             }
+            guard recognizerGeneration == generation else { return }
             snapshot.speech = await speechAssets.status()
         } catch {
+            guard recognizerGeneration == generation else { return }
             snapshot.speech = .failed(error.localizedDescription)
         }
         isInstallingSpeech = false
@@ -169,13 +191,17 @@ final class SetupController {
 
     private func prepareIfPossible() async {
         guard snapshot.speech == .installed, !snapshot.recognizerPrepared, !isPreparing else { return }
+        let generation = recognizerGeneration
         isPreparing = true
-        defer { isPreparing = false }
         do {
             try await prepareRecognizer()
+            isPreparing = false
+            guard recognizerGeneration == generation else { return await prepareIfPossible() }
             snapshot.recognizerPrepared = true
             snapshot.recognizerError = nil
         } catch {
+            isPreparing = false
+            guard recognizerGeneration == generation else { return await prepareIfPossible() }
             snapshot.recognizerError = error.localizedDescription
         }
     }

@@ -24,7 +24,7 @@ final class AppModel {
     private(set) var storageError: String?
 
     @ObservationIgnored let shortcutMonitor: ShortcutMonitor
-    @ObservationIgnored private let engine: LiveDictationEngine
+    @ObservationIgnored private let engine: SwitchingEngine
     @ObservationIgnored private let clipboard: ClipboardOwnership
     @ObservationIgnored private var timers: [Timer] = []
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -42,7 +42,15 @@ final class AppModel {
         self.sampleStore = sampleStore
 
         let clipboard = ClipboardOwnership()
-        let engine = LiveDictationEngine()
+        // Engines are cheap until prepared. Only the selected one loads a model.
+        let engine = SwitchingEngine(
+            engines: [.apple: LiveDictationEngine(), .whisper: WhisperDictationEngine()],
+            selected: preferences.recognizer
+        )
+        let speechAssets = SwitchingAssets(
+            assets: [.apple: SpeechAssets(), .whisper: WhisperAssets()],
+            selected: { preferences.recognizer }
+        )
         let monitor = ShortcutMonitor(shortcut: preferences.shortcut)
         self.clipboard = clipboard
         self.engine = engine
@@ -50,7 +58,7 @@ final class AppModel {
 
         setup = SetupController(
             permissions: SystemPermissions(),
-            speechAssets: SpeechAssets(),
+            speechAssets: speechAssets,
             installEventTap: { monitor.install() },
             prepareRecognizer: { try await engine.prepare() }
         )
@@ -205,6 +213,16 @@ final class AppModel {
         }
         if selectedDataset == .real { refreshInsights() }
         analysis.transcriptAdded()
+    }
+
+    func setRecognizer(_ recognizer: Recognizer) {
+        guard recognizer != preferences.recognizer else { return }
+        coordinator.cancel(notice: nil)
+        preferences.recognizer = recognizer
+        Task {
+            await engine.select(recognizer)
+            await setup.recognizerChanged()
+        }
     }
 
     func setShortcut(_ shortcut: DictationShortcut) {

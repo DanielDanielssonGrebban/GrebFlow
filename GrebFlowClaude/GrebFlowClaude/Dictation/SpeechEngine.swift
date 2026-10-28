@@ -251,8 +251,17 @@ enum SpeechAssetState: Equatable, Sendable {
 
 @MainActor
 protocol SpeechAssetProviding: AnyObject {
+    /// Shown in setup messages, like "English speech model not downloaded".
+    var modelName: String { get }
+    /// Shown while the recognizer loads.
+    var preparingMessage: String { get }
     func status() async -> SpeechAssetState
     func install(progress: @escaping @MainActor @Sendable (Double) -> Void) async throws
+}
+
+extension SpeechAssetProviding {
+    var modelName: String { "English speech model" }
+    var preparingMessage: String { "Preparing recognizer" }
 }
 
 /// Checks and downloads the on-device English model through AssetInventory.
