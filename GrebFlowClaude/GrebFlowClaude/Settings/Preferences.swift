@@ -116,6 +116,11 @@ final class Preferences {
         didSet { defaults.set(sampleAnalysisEnabled, forKey: Keys.sampleAnalysis) }
     }
 
+    /// `DemoSeeder.version` the sample store was last built with.
+    var sampleSeedVersion: Int {
+        didSet { defaults.set(sampleSeedVersion, forKey: Keys.sampleSeedVersion) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         modelID = defaults.string(forKey: Keys.modelID) ?? Self.defaultModelID
@@ -123,6 +128,7 @@ final class Preferences {
         dataset = defaults.string(forKey: Keys.dataset).flatMap(Dataset.init(rawValue:)) ?? .real
         realAnalysisEnabled = defaults.bool(forKey: Keys.realAnalysis)
         sampleAnalysisEnabled = defaults.bool(forKey: Keys.sampleAnalysis)
+        sampleSeedVersion = defaults.integer(forKey: Keys.sampleSeedVersion)
     }
 
     func isAnalysisEnabled(for dataset: Dataset) -> Bool {
@@ -144,5 +150,6 @@ final class Preferences {
         static let dataset = "dashboardDataset"
         static let realAnalysis = "analysisEnabled.real"
         static let sampleAnalysis = "analysisEnabled.sample"
+        static let sampleSeedVersion = "sampleSeedVersion"
     }
 }

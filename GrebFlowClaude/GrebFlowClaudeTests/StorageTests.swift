@@ -163,12 +163,27 @@ struct HistoryStoreTests {
     @Test func sampleDataCoversThePlanExamples() {
         let drafts = DemoSeeder.drafts(now: now)
         let day: TimeInterval = 86_400
-        #expect(drafts.count >= 55 && drafts.count <= 65)
-        #expect(drafts.allSatisfy { $0.startedAt < now && $0.startedAt > now.addingTimeInterval(-7 * day) })
+        #expect(drafts.count >= 110 && drafts.count <= 130)
+        #expect(drafts.count == DemoSeeder.phrases.count)
+        #expect(drafts.allSatisfy { $0.startedAt < now && $0.startedAt > now.addingTimeInterval(-14 * day) })
         let texts = drafts.map { $0.text.lowercased() }
         #expect(texts.contains { $0.contains("use conventional commits") })
         #expect(texts.contains { $0.contains("include a commit subject and body") })
         #expect(drafts.map(\.startedAt) == DemoSeeder.drafts(now: now).map(\.startedAt))
+    }
+
+    @Test func sampleDataFillsEveryChartDay() throws {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let counts = DemoSeeder.dailyCounts(today: today, total: DemoSeeder.phrases.count, calendar: calendar)
+        #expect(counts.count == InsightsModel.chartDays)
+        #expect(counts.reduce(0, +) == DemoSeeder.phrases.count)
+        #expect(counts.allSatisfy { $0 >= 1 })
+
+        let sample = try HistoryStore.inMemory(.sample)
+        try DemoSeeder.seedIfEmpty(sample, now: now)
+        let stats = UsageStats.compute(from: try sample.transcripts(), now: now, days: InsightsModel.chartDays)
+        #expect(stats.daily.allSatisfy { $0.transcripts > 0 })
     }
 }
 

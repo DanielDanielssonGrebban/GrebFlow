@@ -121,7 +121,14 @@ final class AppModel {
 
     func start() {
         do {
-            try DemoSeeder.seedIfEmpty(sampleStore, now: Date())
+            if try !DemoSeeder.seedIfEmpty(sampleStore, now: Date()),
+               preferences.sampleSeedVersion < DemoSeeder.version {
+                // Older sample history from a previous build. Rebuild it so
+                // the demo matches the current seeder.
+                try DemoSeeder.reset(sampleStore, now: Date())
+                analysis.historyReset(.sample)
+            }
+            preferences.sampleSeedVersion = DemoSeeder.version
         } catch {
             storageError = "Couldn't create sample data: \(error.localizedDescription)"
         }
