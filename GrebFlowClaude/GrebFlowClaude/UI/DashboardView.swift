@@ -75,6 +75,11 @@ final class DashboardWindowController {
             defer: false
         )
         window.title = "GrebFlowClaude"
+        // The dashboard has its own dark theme, so it ignores light mode.
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = Theme.nsBackground
+        // Without this the title bar keeps the system toolbar gray.
+        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 820, height: 560)
         window.contentViewController = NSHostingController(rootView: DashboardView(model: model, navigation: navigation))
@@ -106,6 +111,8 @@ struct DashboardView: View {
                     Label(tab.label, systemImage: tab.systemImage).tag(tab)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.sidebar.ignoresSafeArea())
             .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
         } detail: {
             VStack(spacing: 0) {
@@ -123,8 +130,14 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .background(Theme.background.ignoresSafeArea())
             .navigationTitle(navigation.tab.label)
+            .toolbarBackground(Theme.background, for: .windowToolbar)
+            .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
         }
+        .tint(Theme.accent)
+        .fontDesign(.monospaced)
+        .groupBoxStyle(ThemedGroupBoxStyle())
     }
 }
 
@@ -149,7 +162,7 @@ struct DatasetBar: View {
                 SampleBadge()
                 Text("Fictional demo history. Live dictation always saves to real history.")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
             Spacer()
             DictationStatusPill(model: model)
@@ -165,8 +178,10 @@ struct SampleBadge: View {
             .font(.caption.weight(.bold))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Color.orange.opacity(0.2), in: Capsule())
-            .foregroundStyle(.orange)
+            .tracking(1)
+            .background(Theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: Theme.cornerRadius).strokeBorder(Theme.accent.opacity(0.4), lineWidth: 1))
+            .foregroundStyle(Theme.blues[1])
     }
 }
 
@@ -185,7 +200,7 @@ struct DictationStatusPill: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background(.quaternary, in: Capsule())
+        .themedCard()
     }
 }
 

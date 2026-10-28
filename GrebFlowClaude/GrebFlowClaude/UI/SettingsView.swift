@@ -17,6 +17,7 @@ struct SettingsView: View {
             generalSection
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .onAppear {
             modelIDInput = model.preferences.modelID
             model.loginItem.refresh()

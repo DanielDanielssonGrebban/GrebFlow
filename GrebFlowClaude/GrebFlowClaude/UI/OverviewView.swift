@@ -1,4 +1,3 @@
-import AppKit
 import Charts
 import SwiftUI
 
@@ -28,11 +27,25 @@ struct OverviewView: View {
                             x: .value("Day", day.day, unit: .day),
                             y: .value("Transcripts", day.transcripts)
                         )
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(Theme.barGradient)
+                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: Theme.cornerRadius, topTrailingRadius: Theme.cornerRadius))
                     }
-                    .chartYAxisLabel("Transcripts")
+                    .chartXAxis {
+                        AxisMarks { _ in
+                            AxisGridLine().foregroundStyle(Theme.border)
+                            AxisValueLabel().foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks { _ in
+                            AxisGridLine().foregroundStyle(Theme.border)
+                            AxisValueLabel().foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    .chartYAxisLabel {
+                        Text("Transcripts").foregroundStyle(Theme.textSecondary)
+                    }
                     .frame(height: 180)
-                    .padding(8)
                 }
 
                 GroupRingsSection(model: model, navigation: navigation)
@@ -42,10 +55,8 @@ struct OverviewView: View {
                         Text("No words yet.")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
                     } else {
                         WordList(words: stats.topWords)
-                            .padding(8)
                     }
                 }
 
@@ -68,24 +79,23 @@ struct StatCard: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(title)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .sectionLabel()
                 .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 8)
             Text(value)
-                .font(.system(size: 56, weight: .semibold, design: .rounded))
-                .monospacedDigit()
+                .font(.system(size: 56, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             // Keeps the values on the same line whether or not a card has a caption.
             Text(caption ?? " ")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
             Spacer(minLength: 8)
         }
         .frame(maxWidth: .infinity, minHeight: 150)
         .padding(14)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .themedCard()
     }
 }
 
@@ -101,53 +111,20 @@ struct WordList: View {
                         .frame(width: 110, alignment: .leading)
                         .lineLimit(1)
                     GeometryReader { proxy in
-                        Capsule()
-                            .fill(.tint.opacity(0.6))
-                            .frame(width: max(4, proxy.size.width * CGFloat(word.count) / CGFloat(maxCount)))
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2).fill(Theme.track)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Theme.meterGradient)
+                                .frame(width: max(4, proxy.size.width * CGFloat(word.count) / CGFloat(maxCount)))
+                        }
                     }
-                    .frame(height: 8)
+                    .frame(height: 6)
                     Text("\(word.count)")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .frame(width: 30, alignment: .trailing)
                 }
             }
         }
-    }
-}
-
-
-/// Categorical colors for groups, in fixed slot order. Light and dark are
-/// separate steps of the same hues, checked for color-blind separation.
-enum GroupPalette {
-    private static let slots: [(light: UInt32, dark: UInt32)] = [
-        (0x2a78d6, 0x3987e5), // blue
-        (0xeb6834, 0xd95926), // orange
-        (0x1baf7a, 0x199e70), // aqua
-        (0xeda100, 0xc98500), // yellow
-        (0xe87ba4, 0xd55181), // magenta
-        (0x008300, 0x008300), // green
-        (0x6250d6, 0x9085e9), // violet
-        (0xe34948, 0xe66767), // red
-    ]
-
-    static func color(slot: Int) -> Color {
-        let pair = slots[slot % slots.count]
-        return Color(nsColor: NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            return NSColor(hex: isDark ? pair.dark : pair.light)
-        })
-    }
-}
-
-private extension NSColor {
-    convenience init(hex: UInt32) {
-        self.init(
-            srgbRed: CGFloat((hex >> 16) & 0xff) / 255,
-            green: CGFloat((hex >> 8) & 0xff) / 255,
-            blue: CGFloat(hex & 0xff) / 255,
-            alpha: 1
-        )
     }
 }
 
@@ -162,7 +139,7 @@ struct GroupRingsSection: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Groups by meaning").font(.headline)
+                    Text("Groups by meaning").sectionLabel()
                     if model.selectedDataset == .sample { SampleBadge() }
                     Spacer()
                     Button("Open Usage") { navigation.tab = .usage }
@@ -172,11 +149,11 @@ struct GroupRingsSection: View {
                     Text(model.preferences.isAnalysisEnabled(for: model.selectedDataset)
                         ? "No groups yet. They appear here after the first batch is analyzed."
                         : "Turn on analysis in Usage to see groups.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 } else {
                     Text("Share of the \(analyzed) analyzed dictations in each group. One dictation can belong to several groups, so the shares add up to more than 100%.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     // One column per ring so they spread across the whole
                     // pane. An adaptive grid would make more columns than
@@ -190,12 +167,11 @@ struct GroupRingsSection: View {
                     if insights.groups.count > insights.overviewGroups.count {
                         Text("Showing the \(insights.overviewGroups.count) largest of \(insights.groups.count) groups.")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
         }
     }
 
@@ -209,7 +185,7 @@ struct GroupRingsSection: View {
                 GroupRing(
                     group: group,
                     analyzed: insights.coverage.analyzed,
-                    color: GroupPalette.color(slot: insights.groupColorSlots[group.id] ?? 0)
+                    color: Theme.shade(rank: insights.groupShadeRanks[group.id] ?? 0)
                 ) {
                     navigation.showGroup(group.id)
                 }
@@ -232,30 +208,29 @@ struct GroupRing: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .stroke(.quaternary, lineWidth: 10)
+                        .stroke(Theme.track, lineWidth: 8)
                     Circle()
                         .trim(from: 0, to: fraction)
-                        .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     Text(fraction.formatted(.percent.precision(.fractionLength(0))))
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
+                        .font(.system(size: 17, weight: .semibold, design: .monospaced))
                 }
                 .frame(width: 84, height: 84)
                 .padding(.top, 4)
 
                 Text(group.label)
-                    .font(.callout.weight(.medium))
+                    .font(.system(size: 15, weight: .semibold, design: .monospaced))
                     .multilineTextAlignment(.center)
                     .lineLimit(2, reservesSpace: true)
                 Text("\(group.sourceCount) \(group.sourceCount == 1 ? "dictation" : "dictations")")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding(12)
-            .background(.quaternary.opacity(hovering ? 0.8 : 0.4), in: RoundedRectangle(cornerRadius: 10))
-            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .themedCard(fill: hovering ? Theme.cardHover : Theme.background.opacity(0.5))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }

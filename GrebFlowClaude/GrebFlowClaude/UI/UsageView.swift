@@ -51,7 +51,7 @@ struct UsageView: View {
                             ForEach(insights.groups) { group in
                                 GroupCard(
                                     group: group,
-                                    color: insights.groupColorSlots[group.id].map { GroupPalette.color(slot: $0) },
+                                    color: insights.groupShadeRanks[group.id].map { Theme.shade(rank: $0) },
                                     isHighlighted: highlightedGroup == group.id,
                                     isExpanded: Binding(
                                         get: { expandedGroups.contains(group.id) },
@@ -188,7 +188,7 @@ struct RepeatedList: View {
 
 struct GroupCard: View {
     let group: GroupSummary
-    /// Only the groups shown on the overview have a color.
+    /// Only the groups shown on the overview have a shade.
     let color: Color?
     let isHighlighted: Bool
     @Binding var isExpanded: Bool
@@ -222,7 +222,7 @@ struct GroupCard: View {
             .padding(4)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: Theme.cornerRadius)
                 .stroke(color ?? .accentColor, lineWidth: 2)
                 .opacity(isHighlighted ? 1 : 0)
         }
@@ -256,7 +256,7 @@ struct EvidenceRow: View {
                     .textSelection(.enabled)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                    .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
             }
         }
     }

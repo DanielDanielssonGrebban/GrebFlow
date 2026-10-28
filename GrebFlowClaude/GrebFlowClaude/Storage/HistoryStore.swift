@@ -160,7 +160,7 @@ final class HistoryStore {
             guard !evidence.isEmpty else { return nil }
             return GroupSummary(
                 id: group.id, label: group.label, summary: group.summary,
-                createdAt: group.createdAt, updatedAt: group.updatedAt, sourceCount: evidence.count, evidence: evidence
+                updatedAt: group.updatedAt, sourceCount: evidence.count, evidence: evidence
             )
         }
         .sorted { $0.sourceCount != $1.sourceCount ? $0.sourceCount > $1.sourceCount : $0.label < $1.label }
