@@ -53,6 +53,7 @@ struct UsageView: View {
                                     group: group,
                                     color: insights.groupShadeRanks[group.id].map { Theme.shade(rank: $0) },
                                     isHighlighted: highlightedGroup == group.id,
+                                    copy: { model.copy(group.copyText) },
                                     isExpanded: Binding(
                                         get: { expandedGroups.contains(group.id) },
                                         set: { if $0 { expandedGroups.insert(group.id) } else { expandedGroups.remove(group.id) } }
@@ -191,7 +192,9 @@ struct GroupCard: View {
     /// Only the groups shown on the overview have a shade.
     let color: Color?
     let isHighlighted: Bool
+    let copy: () -> Void
     @Binding var isExpanded: Bool
+    @State private var justCopied = false
 
     var body: some View {
         GroupBox {
@@ -212,6 +215,17 @@ struct GroupCard: View {
                         Text("\(group.sourceCount) \(group.sourceCount == 1 ? "dictation" : "dictations")")
                             .font(.callout)
                             .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(justCopied ? "Copied" : "Copy dictations", systemImage: justCopied ? "checkmark" : "doc.on.doc") {
+                            copy()
+                            justCopied = true
+                        }
+                        .help("Copy all \(group.sourceCount) dictations in this group, newest first")
+                        .task(id: justCopied) {
+                            guard justCopied else { return }
+                            try? await Task.sleep(for: .seconds(1.5))
+                            justCopied = false
+                        }
                     }
                     Text(group.summary)
                         .font(.callout)

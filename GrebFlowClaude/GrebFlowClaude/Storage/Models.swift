@@ -149,6 +149,12 @@ struct GroupSummary: Sendable, Equatable, Identifiable {
     /// Distinct source dictations, counted locally.
     var sourceCount: Int
     var evidence: [GroupEvidence]
+
+    /// Every dictation in the group, newest first like the card shows them,
+    /// separated by blank lines so they paste as separate paragraphs.
+    var copyText: String {
+        evidence.map(\.transcriptText).joined(separator: "\n\n")
+    }
 }
 
 struct AnalysisCoverage: Sendable, Equatable {
