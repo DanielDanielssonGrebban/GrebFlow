@@ -6,8 +6,7 @@
 
 A macOS app for developers. Hold a key, speak, let go, and the text is pasted wherever you're typing.
 
-<!-- Hero screenshot: dashboard overview -->
-<!-- ![GrebFlow dashboard](docs/screenshots/overview.png) -->
+![GrebFlow dashboard overview](docs/screenshots/overview.png)
 
 </div>
 
@@ -41,7 +40,6 @@ Audio stays on your Mac and is never saved. History lives in a local database. C
 
 - Turn a group into a draft skill or prompt you can review and share
 - Rolling 7 or 30 day history
-- Mute speakers while recording
 - Swedish
 
 ## Built in a day
