@@ -51,10 +51,7 @@ final class DashboardWindowController {
         if let tab { navigation.tab = tab }
         let window = window ?? makeWindow()
         self.window = window
-        // A saved frame can point at a display that's no longer attached.
-        if !NSScreen.screens.contains(where: { $0.visibleFrame.intersects(window.frame) }) {
-            window.center()
-        }
+        fillScreen(window)
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         // Accessory apps aren't always allowed to activate themselves; make
@@ -73,10 +70,17 @@ final class DashboardWindowController {
         window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 820, height: 560)
         window.contentViewController = NSHostingController(rootView: DashboardView(model: model, navigation: navigation))
-        window.setContentSize(NSSize(width: 1000, height: 700))
-        window.center()
-        window.setFrameAutosaveName("GrebFlowClaudeDashboard")
         return window
+    }
+
+    /// The dashboard always opens covering the usable desktop (menu bar and
+    /// Dock stay visible), on the screen the pointer is on. Not native full
+    /// screen, which would move it to its own Space away from the editor.
+    private func fillScreen(_ window: NSWindow) {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main ?? window.screen
+        guard let screen else { return }
+        window.setFrame(screen.visibleFrame, display: true)
     }
 }
 
