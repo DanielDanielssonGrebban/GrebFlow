@@ -66,14 +66,24 @@ struct StatCard: View {
     var caption: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.callout).foregroundStyle(.secondary)
-            Text(value).font(.system(size: 28, weight: .semibold, design: .rounded))
-            if let caption {
-                Text(caption).font(.caption).foregroundStyle(.secondary)
-            }
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.system(size: 56, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            // Keeps the values on the same line whether or not a card has a caption.
+            Text(caption ?? " ")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
         }
-        .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 150)
         .padding(14)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
     }
