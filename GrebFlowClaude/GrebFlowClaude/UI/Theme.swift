@@ -24,6 +24,8 @@ enum Theme {
 
     /// One radius for every panel, badge and chart bar, for a sharper look.
     static let cornerRadius: CGFloat = 4
+    /// Space between dashboard panels, the same across and down.
+    static let panelGap: CGFloat = 20
 
     /// Ranked items get lighter shades the larger they are.
     static func shade(rank: Int) -> Color {

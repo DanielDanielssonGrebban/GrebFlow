@@ -9,8 +9,8 @@ struct OverviewView: View {
         let stats = model.insights.stats
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
+            VStack(alignment: .leading, spacing: Theme.panelGap) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Theme.panelGap), count: 4), spacing: Theme.panelGap) {
                     StatCard(title: "Transcripts", value: stats.transcriptCount.formatted())
                     StatCard(title: "Dictated words", value: stats.totalWords.formatted())
                     StatCard(title: "Recording time", value: Formatters.duration(stats.totalDuration))
