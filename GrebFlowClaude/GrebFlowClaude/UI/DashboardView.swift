@@ -33,6 +33,14 @@ enum DashboardTab: String, CaseIterable, Identifiable {
 @Observable
 final class DashboardNavigation {
     var tab: DashboardTab = .overview
+    /// Set by the overview rings. Usage scrolls to and expands this group,
+    /// then clears it.
+    var focusedGroupID: UUID?
+
+    func showGroup(_ id: UUID) {
+        focusedGroupID = id
+        tab = .usage
+    }
 }
 
 /// The dashboard is an ordinary window, opened explicitly. Closing it leaves
@@ -107,8 +115,8 @@ struct DashboardView: View {
                 }
                 Group {
                     switch navigation.tab {
-                    case .overview: OverviewView(model: model)
-                    case .usage: UsageView(model: model)
+                    case .overview: OverviewView(model: model, navigation: navigation)
+                    case .usage: UsageView(model: model, navigation: navigation)
                     case .history: HistoryView(model: model)
                     case .settings: SettingsView(model: model)
                     }

@@ -2,61 +2,95 @@ import SwiftUI
 
 struct UsageView: View {
     let model: AppModel
+    let navigation: DashboardNavigation
     @State private var confirmEnable = false
+    @State private var expandedGroups: Set<UUID> = []
+    @State private var highlightedGroup: UUID?
 
     var body: some View {
         let insights = model.insights
         let dataset = model.selectedDataset
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                AnalysisStatusBox(model: model, dataset: dataset, coverage: insights.coverage) {
-                    confirmEnable = true
-                }
-
-                HStack(alignment: .top, spacing: 16) {
-                    RepeatedList(
-                        title: "Repeated phrases",
-                        caption: "Two to four words, counted once per dictation.",
-                        items: insights.phrases
-                    )
-                    RepeatedList(
-                        title: "Repeated sentences",
-                        caption: "Whole sentences after lowercasing and trimming punctuation.",
-                        items: insights.sentences
-                    )
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Groups by meaning").font(.title3.weight(.semibold))
-                        if dataset == .sample { SampleBadge() }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    AnalysisStatusBox(model: model, dataset: dataset, coverage: insights.coverage) {
+                        confirmEnable = true
                     }
-                    Text("Grouped by Claude. Counts are distinct dictations, counted on this Mac. One dictation can belong to several groups, so the counts overlap.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
 
-                    if insights.groups.isEmpty {
-                        Text(model.preferences.isAnalysisEnabled(for: dataset)
-                            ? "No groups yet. They appear here after the first batch is analyzed."
-                            : "Turn on analysis for this dataset to see groups.")
+                    HStack(alignment: .top, spacing: 16) {
+                        RepeatedList(
+                            title: "Repeated phrases",
+                            caption: "Two to four words, counted once per dictation.",
+                            items: insights.phrases
+                        )
+                        RepeatedList(
+                            title: "Repeated sentences",
+                            caption: "Whole sentences after lowercasing and trimming punctuation.",
+                            items: insights.sentences
+                        )
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Groups by meaning").font(.title3.weight(.semibold))
+                            if dataset == .sample { SampleBadge() }
+                        }
+                        Text("Grouped by Claude. Counts are distinct dictations, counted on this Mac. One dictation can belong to several groups, so the counts overlap.")
+                            .font(.callout)
                             .foregroundStyle(.secondary)
-                            .padding(.vertical, 6)
-                    } else {
-                        ForEach(insights.groups) { group in
-                            GroupCard(group: group)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if insights.groups.isEmpty {
+                            Text(model.preferences.isAnalysisEnabled(for: dataset)
+                                ? "No groups yet. They appear here after the first batch is analyzed."
+                                : "Turn on analysis for this dataset to see groups.")
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 6)
+                        } else {
+                            ForEach(insights.groups) { group in
+                                GroupCard(
+                                    group: group,
+                                    color: insights.groupColorSlots[group.id].map { GroupPalette.color(slot: $0) },
+                                    isHighlighted: highlightedGroup == group.id,
+                                    isExpanded: Binding(
+                                        get: { expandedGroups.contains(group.id) },
+                                        set: { if $0 { expandedGroups.insert(group.id) } else { expandedGroups.remove(group.id) } }
+                                    )
+                                )
+                                .id(group.id)
+                            }
                         }
                     }
                 }
+                .padding(20)
             }
-            .padding(20)
+            .task(id: navigation.focusedGroupID) {
+                await focusGroup(using: proxy)
+            }
         }
         .confirmationDialog("Turn on automatic grouping for \(dataset.label.lowercased())?", isPresented: $confirmEnable) {
             Button("Turn on") { model.setAnalysisEnabled(true, for: dataset) }
         } message: {
             Text(AnalysisConsent.explanation(dataset: dataset, modelID: model.preferences.modelID))
         }
+    }
+}
+
+extension UsageView {
+    /// Opens the group picked on the overview: expand it, scroll it to the
+    /// top, and flash its border so it's easy to spot.
+    private func focusGroup(using proxy: ScrollViewProxy) async {
+        guard let id = navigation.focusedGroupID else { return }
+        navigation.focusedGroupID = nil
+        guard model.insights.groups.contains(where: { $0.id == id }) else { return }
+        expandedGroups.insert(id)
+        highlightedGroup = id
+        // Let the expanded card lay out before scrolling to it.
+        await Task.yield()
+        withAnimation { proxy.scrollTo(id, anchor: .top) }
+        try? await Task.sleep(for: .seconds(1.5))
+        withAnimation { if highlightedGroup == id { highlightedGroup = nil } }
     }
 }
 
@@ -154,11 +188,14 @@ struct RepeatedList: View {
 
 struct GroupCard: View {
     let group: GroupSummary
-    @State private var expanded = false
+    /// Only the groups shown on the overview have a color.
+    let color: Color?
+    let isHighlighted: Bool
+    @Binding var isExpanded: Bool
 
     var body: some View {
         GroupBox {
-            DisclosureGroup(isExpanded: $expanded) {
+            DisclosureGroup(isExpanded: $isExpanded) {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(group.evidence) { evidence in
                         EvidenceRow(evidence: evidence)
@@ -168,6 +205,9 @@ struct GroupCard: View {
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline) {
+                        if let color {
+                            Circle().fill(color).frame(width: 10, height: 10)
+                        }
                         Text(group.label).font(.headline)
                         Text("\(group.sourceCount) \(group.sourceCount == 1 ? "dictation" : "dictations")")
                             .font(.callout)
@@ -180,6 +220,11 @@ struct GroupCard: View {
                 }
             }
             .padding(4)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(color ?? .accentColor, lineWidth: 2)
+                .opacity(isHighlighted ? 1 : 0)
         }
     }
 }

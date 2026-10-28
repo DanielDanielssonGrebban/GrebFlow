@@ -208,6 +208,21 @@ struct StatisticsTests {
         #expect(stats.topWords.count == 15)
     }
 
+    @Test func groupColorsFollowCreationOrderNotRank() {
+        func group(_ label: String, created: TimeInterval, count: Int) -> GroupSummary {
+            GroupSummary(
+                id: UUID(), label: label, summary: "", createdAt: now.addingTimeInterval(created),
+                updatedAt: now, sourceCount: count, evidence: []
+            )
+        }
+        let older = group("Older", created: 0, count: 2)
+        let newer = group("Newer", created: 60, count: 9)
+        // Ranked by count, newer comes first, but it was created second.
+        let slots = InsightsModel.colorSlots(for: [newer, older])
+        #expect(slots[older.id] == 0)
+        #expect(slots[newer.id] == 1)
+    }
+
     @Test func dailyUsageGroupsByLocalCalendarDay() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Stockholm")!

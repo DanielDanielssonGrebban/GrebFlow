@@ -145,6 +145,7 @@ struct GroupSummary: Sendable, Equatable, Identifiable {
     var id: UUID
     var label: String
     var summary: String
+    var createdAt: Date
     var updatedAt: Date
     /// Distinct source dictations, counted locally.
     var sourceCount: Int
