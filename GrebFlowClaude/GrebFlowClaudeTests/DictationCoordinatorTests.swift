@@ -44,6 +44,29 @@ struct DictationCoordinatorTests {
         #expect(engine.finishCount == 5)
     }
 
+    @Test func recordingEndsOnReleaseBeforeTranscriptionFinishes() async {
+        let changes = LockedBox<[Bool]>([])
+        coordinator.onRecordingChanged = { recording in changes.mutate { $0.append(recording) } }
+        engine.holdFinish = true
+        await record()
+        #expect(changes.value == [true])
+        coordinator.handle(.released)
+        #expect(await waitUntil { engine.isWaitingInFinish })
+        #expect(changes.value == [true, false])
+        engine.releaseFinish()
+        #expect(await waitUntil { coordinator.phase == .idle })
+        #expect(changes.value == [true, false])
+    }
+
+    @Test func cancelledRecordingAlsoEnds() async {
+        let changes = LockedBox<[Bool]>([])
+        coordinator.onRecordingChanged = { recording in changes.mutate { $0.append(recording) } }
+        await record()
+        coordinator.handle(.escape)
+        #expect(await waitUntil { coordinator.phase == .idle })
+        #expect(changes.value == [true, false])
+    }
+
     @Test func releaseDuringStartupStillFinishes() async {
         engine.holdStart = true
         coordinator.handle(.pressed)

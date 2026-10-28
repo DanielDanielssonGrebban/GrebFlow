@@ -20,6 +20,7 @@ final class AppModel {
     let insights: InsightsModel
     let apiKey: APIKeyController
     let loginItem: LoginItemController
+    let muter: OutputMuter
 
     private(set) var storageError: String?
 
@@ -77,6 +78,7 @@ final class AppModel {
         insights = InsightsModel()
         apiKey = APIKeyController(secrets: secrets, client: client)
         loginItem = LoginItemController()
+        muter = OutputMuter(control: CoreAudioMuteControl())
 
         wireUp()
     }
@@ -111,6 +113,11 @@ final class AppModel {
             )
         }
         coordinator.onMissedRelease = { monitor.resetHeldState() }
+        let muter = muter
+        muter.isEnabled = { preferences.muteOutputWhileRecording }
+        coordinator.onRecordingChanged = { recording in
+            if recording { muter.recordingStarted() } else { muter.restore() }
+        }
         coordinator.onTranscript = { [weak self] draft in
             self?.record(draft)
         }
@@ -128,6 +135,7 @@ final class AppModel {
     // MARK: Lifecycle
 
     func start() {
+        muter.recoverInterruptedSession()
         do {
             if try !DemoSeeder.seedIfEmpty(sampleStore, now: Date()),
                preferences.sampleSeedVersion < DemoSeeder.version {
@@ -154,6 +162,9 @@ final class AppModel {
         observers.append(workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { @Sendable _ in
             Task { @MainActor [weak self] in
                 self?.coordinator.abort(reason: "Recording stopped because the Mac went to sleep.")
+                // A cancel during startup ends the session a moment later;
+                // don't sleep with the sound off.
+                self?.muter.restore()
             }
         })
         observers.append(workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { @Sendable _ in
@@ -165,6 +176,7 @@ final class AppModel {
 
     func shutdown() {
         coordinator.abort(reason: "GrebFlowClaude is quitting.")
+        muter.restore()
         analysis.cancelAll()
         shortcutMonitor.uninstall()
         timers.forEach { $0.invalidate() }
@@ -229,6 +241,11 @@ final class AppModel {
         coordinator.cancel(notice: nil)
         preferences.shortcut = shortcut
         shortcutMonitor.shortcut = shortcut
+    }
+
+    func setMuteOutputWhileRecording(_ enabled: Bool) {
+        preferences.muteOutputWhileRecording = enabled
+        if !enabled { muter.restore() }
     }
 
     func setAnalysisEnabled(_ enabled: Bool, for dataset: Dataset) {

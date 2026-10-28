@@ -133,6 +133,11 @@ final class Preferences {
         didSet { defaults.set(recognizer.rawValue, forKey: Keys.recognizer) }
     }
 
+    /// Mute the sound output while the dictation key is held. Off by default.
+    var muteOutputWhileRecording: Bool {
+        didSet { defaults.set(muteOutputWhileRecording, forKey: Keys.muteOutput) }
+    }
+
     /// Consent to send transcripts for AI grouping, given separately for
     /// each dataset. Off until the user turns it on.
     private(set) var realAnalysisEnabled: Bool {
@@ -154,6 +159,7 @@ final class Preferences {
         shortcut = defaults.string(forKey: Keys.shortcut).flatMap(DictationShortcut.init(rawValue:)) ?? .rightOption
         dataset = defaults.string(forKey: Keys.dataset).flatMap(Dataset.init(rawValue:)) ?? .real
         recognizer = defaults.string(forKey: Keys.recognizer).flatMap(Recognizer.init(rawValue:)) ?? .apple
+        muteOutputWhileRecording = defaults.bool(forKey: Keys.muteOutput)
         realAnalysisEnabled = defaults.bool(forKey: Keys.realAnalysis)
         sampleAnalysisEnabled = defaults.bool(forKey: Keys.sampleAnalysis)
         sampleSeedVersion = defaults.integer(forKey: Keys.sampleSeedVersion)
@@ -177,6 +183,7 @@ final class Preferences {
         static let shortcut = "dictationShortcut"
         static let dataset = "dashboardDataset"
         static let recognizer = "speechRecognizer"
+        static let muteOutput = "muteOutputWhileRecording"
         static let realAnalysis = "analysisEnabled.real"
         static let sampleAnalysis = "analysisEnabled.sample"
         static let sampleSeedVersion = "sampleSeedVersion"
