@@ -1,39 +1,51 @@
-# GrebFlow
+<div align="center">
 
-Voice-to-text for developers.
+<img src="docs/images/grebflow-logo.png" alt="GrebFlow" width="600">
 
-## The challenge
+**Talk to your AI coding tools. Then see what you keep asking them.**
 
-Writing code means working with brackets, symbols, and exact syntax. Keyboards are well suited to that work; saying it all out loud is awkward.
+A macOS app for developers. Hold a key, speak, let go, and the text is pasted wherever you're typing.
 
-With AI coding agents, more of our work is shifting from writing code to describing what we want in plain English. We can speak those instructions faster than we can type them, yet we're so used to our keyboards that we keep typing out of habit.
+<!-- Hero screenshot: dashboard overview -->
+<!-- ![GrebFlow dashboard](docs/screenshots/overview.png) -->
 
-We can make these AI workflows more efficient by turning repeated requests into reusable skills, scripts, or prompts. But we're missing a way to track what we ask our agents and spot the recurring tasks worth turning into something reusable.
+</div>
 
-## What we're building
+---
 
-GrebFlow is a native macOS menu bar app. Hold a shortcut, speak, and release to paste your words into the active input, including terminals and AI coding tools.
+## Why
 
-Transcription runs locally using Apple's native Speech framework, with SpeechAnalyzer and SpeechTranscriber integrated through Swift. Audio is never saved, and transcript history is stored locally. When you request a report, GrebFlow sends all retained history from the current real or sample dataset to Claude, along with an editable report skill and any additional context or specific requests.
+We spend more and more of the day telling AI agents what to do in plain English, and speaking is faster than typing. We also repeat the same instructions every day. Those are the ones worth turning into a skill or a shared prompt, but nobody sees them once they scroll out of the chat.
 
-Claude identifies recurring workflows and suggests reusable skills, prompts, or scripts. Developers review the suggestions and decide what to create. GrebFlow does not execute them.
+## Dictation
 
-## Why it matters
+Hold **right Option**, speak, release. GrebFlow pastes the text as one line and never presses Enter, so it's safe in a terminal or Claude Code.
 
-The goal is to spend less time typing and repeating instructions. Sharing reusable skills and scripts can also help colleagues avoid solving the same workflow problems separately, leaving more time for client work.
+<!-- ![Dictating into Claude Code](docs/screenshots/dictation.gif) -->
 
-## Plans
+Speech recognition runs on your Mac. Apple's recognizer is the default and needs no download. Switch to Whisper in Settings and developer words come out right, so you get `JSON` instead of "Jason".
 
-Start with the [V1 core plan](plans/core-plan.md) for critical requirements, build order, and acceptance checks.
+## Usage insights
 
-The [V2 plan](plans/v2-plan.md) contains optional features to consider only after V1 is demo-ready.
+The dashboard shows how much you dictate and which words and phrases you repeat. Claude then groups your requests by meaning. "Use conventional commits" and "include a subject and body" both land under Commit preparation, with the exact excerpts that put them there. It updates in the background, so there's no button to press.
 
-## Suggested workflow
+<!-- ![Usage](docs/screenshots/usage.png) -->
 
-1. Start with spec-driven development. Review the core plan together, add or remove requirements, and agree on the scope and acceptance criteria before building.
-2. Build separate versions of the app in parallel, using the same agreed plan.
-3. Aim to have the core plan implemented by lunchtime.
-4. Compare the apps against the agreed criteria, choose the strongest version, and continue working on it together.
-5. Review the V2 plan as a team. Suggest, add, or remove features based on the time left, then agree on what to tackle.
-6. Prepare and rehearse the demo.
-7. Beers.
+If "Writing tests" shows up 40 times in two weeks, you know which skill to write next.
+
+## Privacy
+
+Audio stays on your Mac and is never saved. History lives in a local database. Claude only sees new transcripts, and only after you turn grouping on. It uses Claude Haiku with a daily spending cap.
+
+## What's next
+
+- Turn a group into a draft skill or prompt you can review and share
+- Rolling 7 or 30 day history
+- Mute speakers while recording
+- Swedish
+
+## Built in a day
+
+We made GrebFlow at a Grebban hackday. We wrote one spec together, had three AI agents build it in parallel, and kept the best version. The specs are in [`plans/`](plans/).
+
+Built with Swift 6, SwiftUI, SwiftData, Apple's SpeechAnalyzer, WhisperKit and the Anthropic API, for macOS 26 on Apple silicon.
