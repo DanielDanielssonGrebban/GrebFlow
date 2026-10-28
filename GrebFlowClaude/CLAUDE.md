@@ -10,7 +10,12 @@ This is one of three parallel builds of the same plan, made at a Grebban hackday
 
 - V1 is implemented and runs. Live dictation, permissions, and paste were confirmed working by the user on their Mac.
 - Not yet verified manually: five consecutive pastes in a row, all three variants running together, real grouping quality with an API key, Launch at login, latency numbers.
-- Nothing is committed yet. Everything lives untracked in `GrebFlowClaude/` on branch `feat/greb-flow-claude`.
+- Committed and pushed on branch `feat/greb-flow-claude` (remote `origin`, `DanielDanielssonGrebban/GrebFlow`).
+- Dashboard tuning done after V1, at the user's request:
+  - The window fills the usable screen every time it opens (not native full screen). No saved frame.
+  - The overview shows a colored ring for each of the 8 largest groups. Clicking one opens Usage scrolled to that group. Colors come from `GroupPalette` and are assigned in creation order (`InsightsModel.colorSlots`).
+  - The overview shows 15 frequent words, and the stat card values are large and centered.
+  - Sample data is 117 dictations over 14 days, which goes past the plan's 60 over 7. `DemoSeeder.version` is stored in `Preferences.sampleSeedVersion`. Bump it when the seed changes, and older sample stores rebuild once on launch.
 
 ## Build, run, test
 
