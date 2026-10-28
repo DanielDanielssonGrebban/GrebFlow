@@ -160,6 +160,17 @@ struct SettingsView: View {
             Text("Release to paste into the focused field, followed by one space. Escape cancels a recording. Pressing any other key or modifier while holding the shortcut also cancels, so the key still works for normal typing.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            Toggle("Mute sound while dictating", isOn: Binding(
+                get: { model.preferences.muteOutputWhileRecording },
+                set: { model.setMuteOutputWhileRecording($0) }
+            ))
+            Text("Mutes your Mac's current sound output, like speakers or headphones, while you hold the key, and unmutes it when you let go. Music and videos keep playing, you just don't hear them. If the output was already muted, it stays muted. Some outputs, like many HDMI and USB devices, can't be muted.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            if model.preferences.muteOutputWhileRecording, let limitation = model.muter.limitation {
+                Label(limitation, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            }
         }
     }
 

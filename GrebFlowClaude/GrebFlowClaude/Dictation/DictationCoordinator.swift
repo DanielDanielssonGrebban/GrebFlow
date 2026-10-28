@@ -37,7 +37,13 @@ struct SessionTimings: Equatable, Sendable {
 @MainActor
 @Observable
 final class DictationCoordinator {
-    private(set) var phase: DictationPhase = .idle
+    private(set) var phase: DictationPhase = .idle {
+        didSet {
+            if isRecording != (oldValue == .starting || oldValue == .recording) {
+                onRecordingChanged(isRecording)
+            }
+        }
+    }
     private(set) var level: Float = 0
     private(set) var notice: String?
     private(set) var latestTranscript: String?
@@ -49,6 +55,9 @@ final class DictationCoordinator {
     @ObservationIgnored var isShortcutPhysicallyHeld: () -> Bool = { true }
     @ObservationIgnored var onTranscript: (TranscriptDraft) -> Void = { _ in }
     @ObservationIgnored var onMissedRelease: () -> Void = {}
+    /// True on press, false the moment the key is released or the session
+    /// ends some other way, before transcription finishes.
+    @ObservationIgnored var onRecordingChanged: (Bool) -> Void = { _ in }
     @ObservationIgnored var watchdogDuration: Duration = .seconds(300)
     @ObservationIgnored var releasePollInterval: Duration = .milliseconds(150)
 
